@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import sqlite3
 import yfinance as yf
-from typing import Union, Tuple, Dict
+from typing import Union, Tuple, Dict, List
 
 from finance_ml.utils.constants import (
     QUARTERLY_DB_FILE_PATH, QuarterlyColumns, QUARTERLY_TABLE_NAME, AVG_REC_PREFIX)
@@ -34,6 +34,41 @@ SELECT DISTINCT {QuarterlyColumns.TICKER_SYMBOL} FROM {QUARTERLY_TABLE_NAME}
             db_conn.close()
 
 
+def _build_split_data(ticker, quarter_end_dates) -> List[Union[float, None]]:
+    """
+
+    Args:
+        ticker:
+        quarter_end_dates: most recent data is first!
+
+    Returns:
+        List[Union[float, None]] of splits if they occurred within the quarter
+    """
+    split_dates = list(zip(ticker.splits.index, ticker.splits))  # Tuples of (date, split)
+    split_date, split = split_dates.pop() if split_dates else (None, None)
+    split_data = []
+    for quarter_end_date in quarter_end_dates:
+        if split is None:
+            split_data.append(None)
+            continue
+
+        quarter_start_date = quarter_end_date - timedelta(days=13 * 7)
+
+        if quarter_start_date < split_date.date() < quarter_end_date:
+            split_data.append(split)
+            continue
+
+        while split_dates:
+            split_date, split = split_dates.pop()  # Pops most recent split date
+            if split_date.date() < quarter_end_date:
+                break
+
+        split_data.append(
+            split if quarter_start_date < split_date.date() < quarter_end_date else None)
+
+    return split_data
+
+
 def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
     """
     Get Quarterly Stock Data
@@ -43,12 +78,14 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
     Returns:
         (Dict of general stock info, DataFrame of Quarterly Data)
     """
+    # most recent data is first
     quarter_end_dates = [date.date() for date in ticker.quarterly_balance_sheet.columns]
 
     # Row Indexes are Quarter strings: '1Q2019'
     q_data = ticker.quarterly_earnings.copy()
     q_data['Year'] = q_data.index.to_series().apply(lambda i: i[-4])
     q_data['Quarter'] = q_data.index.to_series().apply(lambda i: i[0])
+    q_data['Split'] = _build_split_data(ticker, quarter_end_dates)
 
     info = {feature: ticker.info[feature] for feature in INFO_KEYS}
 
@@ -110,14 +147,18 @@ def get_average_over_time_period(ticker: yf.Ticker,
     """
     start, end, time_period = _get_start_end_time_period(start, end, time_period)
 
+    ticker.get_history(start=start, end=end)
+
     output = pd.DataFrame()
 
     period_start = start
     period_end = period_start + timedelta(days=time_period)
 
     while period_end < end:
-        ticker.get_history(start=period_start, end=period_end)
-        period_data = ticker.history
+        period_data = ticker.history.loc[
+            (ticker.history.index >= datetime(
+                period_start.year, period_start.month, period_start.day)) & (
+                    ticker.history.index < datetime(end.year, end.month, end.day))]
 
         period_data = pd.DataFrame({
             QuarterlyColumns.TICKER_SYMBOL: [ticker.ticker],
