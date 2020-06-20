@@ -72,6 +72,7 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
                       time_period=13 * 7)
         avg_data['Quarter'] = avg_data[QuarterlyColumns.DATE].apply(
             lambda d: f'{MONTH_TO_QUARTER[d.month]}Q{d.year}')
+        avg_data.drop(columns=[QuarterlyColumns.DATE], inplace=True)
         avg_data.set_index(['Quarter'], inplace=True)
 
         q_data.join(avg_data)
@@ -171,7 +172,8 @@ def get_average_recommendations_over_time_period(
             [yf.RecommendationColumns.Firm]).mean().transpose()
         firm_avg_grades_df.rename(
             columns={firm: f'{AVG_REC_PREFIX}{firm.replace(" ", "")}'
-                     for firm in firm_avg_grades_df.columns})
+                     for firm in firm_avg_grades_df.columns},
+            inplace=True)
         firm_avg_grades_df[QuarterlyColumns.DATE] = [period_end]
 
         output = pd.concat([output, firm_avg_grades_df]).reset_index(drop=True)
