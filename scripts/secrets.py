@@ -1,2 +1,3 @@
-# TODO: Store secrets securely!
-QUANDL_API_KEY = "4fPtU84sutY4oNcYuaAW"
+import os
+
+QUANDL_API_KEY = os.environ.get('QUANDL_API_KEY')
