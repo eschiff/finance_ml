@@ -3,27 +3,38 @@ import pandas as pd
 import sqlite3
 import yfinance as yf
 from typing import Union, Tuple, Dict, List
+import os
+import re
+import json
 
 from finance_ml.utils.constants import (
-    QUARTERLY_DB_FILE_PATH, QuarterlyColumns, QUARTERLY_TABLE_NAME, AVG_REC_PREFIX)
+    QUARTERLY_DB_FILE_PATH, QuarterlyColumns, STOCKPUP_TABLE_NAME, AVG_REC_PREFIX,
+    YF_QUARTERLY_TABLE_NAME, STOCK_GENERAL_INFO_CSV)
 from scripts.yahoo_finance_constants import (
-    INFO_KEYS, FINANCIAL_KEYS, BALANCE_SHEET_KEYS, CASHFLOW_KEYS, RECOMMENDATION_GRADE_MAPPING)
+    INFO_KEYS, FINANCIAL_KEYS, BALANCE_SHEET_KEYS, CASHFLOW_KEYS, RECOMMENDATION_GRADE_MAPPING,
+    YF_QUARTERLY_TABLE_SCHEMA)
 
-MONTH_TO_QUARTER = {3: '1',
-                    4: '1',
-                    6: '2',
-                    7: '2',
-                    9: '3',
-                    10: '3',
-                    12: '4',
-                    1: '4'}
+MONTH_TO_QUARTER = {
+    1: 4,
+    2: 1,
+    3: 1,
+    4: 1,
+    5: 2,
+    6: 2,
+    7: 2,
+    8: 3,
+    9: 3,
+    10: 3,
+    11: 4,
+    12: 4
+}
 
 
 def _get_ticker_symbols_from_db():
     try:
         db_conn = sqlite3.connect(QUARTERLY_DB_FILE_PATH)
         command = f'''
-SELECT DISTINCT {QuarterlyColumns.TICKER_SYMBOL} FROM {QUARTERLY_TABLE_NAME}
+SELECT DISTINCT {QuarterlyColumns.TICKER_SYMBOL} FROM {STOCKPUP_TABLE_NAME}
 '''
         print(f"Executing command: {command}")
         result = db_conn.execute(command)
@@ -80,21 +91,24 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
     """
     # most recent data is first
     quarter_end_dates = [date.date() for date in ticker.quarterly_balance_sheet.columns]
+    q_indexes = [f'{MONTH_TO_QUARTER[date.month]}Q{date.year}' for date in quarter_end_dates]
 
     # Row Indexes are Quarter strings: '1Q2019'
     q_data = ticker.quarterly_earnings.copy()
-    q_data['Year'] = q_data.index.to_series().apply(lambda i: i[-4])
-    q_data['Quarter'] = q_data.index.to_series().apply(lambda i: i[0])
-    q_data['Split'] = _build_split_data(ticker, quarter_end_dates)
+    q_data.index = q_indexes  # Replacing indexes, since the original can contain duplicates...
+    q_data[QuarterlyColumns.TICKER_SYMBOL] = [ticker.ticker] * len(quarter_end_dates)
+    q_data[QuarterlyColumns.YEAR] = q_data.index.to_series().apply(lambda i: int(i[-4:]))
+    q_data[QuarterlyColumns.QUARTER] = q_data.index.to_series().apply(lambda i: int(i[0]))
+    q_data[QuarterlyColumns.SPLIT] = _build_split_data(ticker, quarter_end_dates)
 
-    info = {feature: ticker.info[feature] for feature in INFO_KEYS}
+    info = {feature: ticker.info.get(feature, '') for feature in INFO_KEYS}
 
     quarterly_balance_sheet = ticker.quarterly_balance_sheet.loc[
-        [column for column in BALANCE_SHEET_KEYS]]
+        [key for key in BALANCE_SHEET_KEYS if key in ticker.quarterly_balance_sheet.index]]
     financial_data = ticker.quarterly_financials.loc[
-        [column for column in FINANCIAL_KEYS]]
+        [key for key in FINANCIAL_KEYS if key in ticker.quarterly_financials.index]]
     cashflow_data = ticker.quarterly_cashflow.loc[
-        [column for column in CASHFLOW_KEYS]]
+        [key for key in CASHFLOW_KEYS if key in ticker.quarterly_cashflow.index]]
     combined_data = pd.concat([quarterly_balance_sheet, financial_data, cashflow_data])
     combined_data = combined_data.rename(
         columns={date: f'{MONTH_TO_QUARTER[date.month]}Q{date.year}'
@@ -107,14 +121,23 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
         avg_data = fn(ticker=ticker,
                       start=quarter_end_dates[-1] - timedelta(days=13 * 7),
                       time_period=13 * 7)
+
+        if avg_data.empty:
+            continue
+
         avg_data['Quarter'] = avg_data[QuarterlyColumns.DATE].apply(
             lambda d: f'{MONTH_TO_QUARTER[d.month]}Q{d.year}')
-        avg_data.drop(columns=[QuarterlyColumns.DATE], inplace=True)
+        avg_data.drop(columns=[QuarterlyColumns.DATE, QuarterlyColumns.TICKER_SYMBOL],
+                      inplace=True)
         avg_data.set_index(['Quarter'], inplace=True)
 
-        q_data.join(avg_data)
+        q_data = q_data.join(avg_data)
 
     q_data.reset_index(drop=True, inplace=True)
+    q_data[QuarterlyColumns.DATE] = quarter_end_dates
+
+    # Remove duplicate columns
+    q_data = q_data.loc[:, ~q_data.columns.duplicated()]
 
     return info, q_data
 
@@ -122,8 +145,8 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
 def _get_start_end_time_period(start, end, time_period):
     now = datetime.now().date()
     start = now - timedelta(days=time_period) if (start is None and time_period is not None) \
-        else getattr(start, 'date', start)
-    end = now if end is None else getattr(end, 'date', end)
+        else start.date() if hasattr(start, 'date') else start
+    end = now if end is None else end.date() if hasattr(end, 'date') else end
     time_period = (end - start).days if time_period is None else time_period
     return (start, end, time_period)
 
@@ -182,7 +205,8 @@ def get_average_recommendations_over_time_period(
         ticker: yf.Ticker,
         start: datetime = None,
         end: datetime = None,
-        time_period: Union[int, None] = None) -> pd.DataFrame:
+        time_period: Union[int, None] = None,
+        collapse_ratings_to_single_column: bool = True) -> pd.DataFrame:
     """
     Get average recommendations by time period (from -1 (negative) to 1 (positive)
     Args:
@@ -191,35 +215,109 @@ def get_average_recommendations_over_time_period(
         end: (datetime) end date. Defaults to today.
         time_period: (int) # days to average data over. Defaults to # days between start and end
             if not given
+        collapse_ratings_to_single_column: (bool) Whether to collapse ratings to a single column
 
     Returns:
-        DataFrame with columns for Average Recommendation Grades by Firm, Date
+        DataFrame with column(s) for Average Recommendation Grades by Firm, Date, Ticker
     """
-    start, end, time_period = _get_start_end_time_period(start, end, time_period)
-
     output = pd.DataFrame()
+    if ticker.recommendations.empty:
+        return output
+
+    start, end, time_period = _get_start_end_time_period(start, end, time_period)
 
     period_start = start
     period_end = period_start + timedelta(days=time_period)
 
-    while period_end < end:
+    while period_end <= end:
         recs = ticker.recommendations[
             (ticker.recommendations.index >= datetime(start.year, start.month, start.day)) & (
                     ticker.recommendations.index < datetime(end.year, end.month, end.day))]
 
-        recs['Grade'] = recs[yf.RecommendationColumns.ToGrade].apply(
-            lambda r: RECOMMENDATION_GRADE_MAPPING.get(r, 0))
-        firm_avg_grades_df = recs[[yf.RecommendationColumns.Firm, 'Grade']].groupby(
-            [yf.RecommendationColumns.Firm]).mean().transpose()
-        firm_avg_grades_df.rename(
-            columns={firm: f'{AVG_REC_PREFIX}{firm.replace(" ", "")}'
-                     for firm in firm_avg_grades_df.columns},
-            inplace=True)
-        firm_avg_grades_df[QuarterlyColumns.DATE] = [period_end]
+        if not recs.empty:
+            recs['Grade'] = recs[yf.RecommendationColumns.ToGrade].apply(
+                lambda r: RECOMMENDATION_GRADE_MAPPING.get(r, 0))
+            firm_avg_grades_df = recs[[yf.RecommendationColumns.Firm, 'Grade']].groupby(
+                [yf.RecommendationColumns.Firm]).mean().transpose()
+            firm_avg_grades_df.rename(
+                columns={firm: f'{firm.replace(" ", "")}' for firm in firm_avg_grades_df.columns},
+                inplace=True)
+            firm_avg_grades_df[QuarterlyColumns.DATE] = [period_end]
+            firm_avg_grades_df[QuarterlyColumns.TICKER_SYMBOL] = [ticker.ticker]
 
-        output = pd.concat([output, firm_avg_grades_df]).reset_index(drop=True)
+            if collapse_ratings_to_single_column:
+                ratings_json = json.dumps(
+                    firm_avg_grades_df[firm_avg_grades_df.columns.difference(
+                        [QuarterlyColumns.DATE, QuarterlyColumns.TICKER_SYMBOL]
+                    )].transpose().to_dict()['Grade'])
+                firm_avg_grades_df = firm_avg_grades_df[
+                    [QuarterlyColumns.DATE, QuarterlyColumns.TICKER_SYMBOL]]
+                firm_avg_grades_df[QuarterlyColumns.AVG_RECOMMENDATIONS] = [ratings_json]
+
+            output = pd.concat([output, firm_avg_grades_df]).reset_index(drop=True)
 
         period_start = period_end
         period_end = period_start + timedelta(days=time_period)
 
     return output
+
+
+def build_quarterly_database():
+    today = datetime.now()
+
+    try:
+        db_conn = sqlite3.connect(QUARTERLY_DB_FILE_PATH)
+
+        command = f'''CREATE TABLE IF NOT EXISTS {YF_QUARTERLY_TABLE_NAME} (
+{YF_QUARTERLY_TABLE_SCHEMA},
+    PRIMARY KEY ({QuarterlyColumns.TICKER_SYMBOL}, {QuarterlyColumns.QUARTER}, {QuarterlyColumns.YEAR})
+);'''
+
+        db_conn.execute(command)
+
+        ticker_symbols = _get_ticker_symbols_from_db() + ['']
+        full_ticker_info = {}
+
+        for ticker_symbol in ticker_symbols:
+            ticker = yf.Ticker(ticker_symbol)
+
+            if ticker.quarterly_balance_sheet.empty or (
+                    today - ticker.quarterly_balance_sheet.columns[0] > timedelta(days=90)):
+                continue
+
+            ticker_info, ticker_df = get_quarterly_data(ticker)
+            ticker_df = ticker_df.rename(
+                columns={col: re.compile('[\W_]+').sub('', col) for col in ticker_df.columns})
+
+            full_ticker_info[ticker_symbol] = ticker_info
+
+            existing_cols = [col_info[1] for col_info in db_conn.execute(
+                f"PRAGMA table_info({YF_QUARTERLY_TABLE_NAME})").fetchall()]
+
+            new_cols = set(ticker_df.columns) - set(existing_cols)
+            for new_col in new_cols:
+                db_conn.execute(
+                    f"ALTER TABLE {YF_QUARTERLY_TABLE_NAME} ADD COLUMN {new_col} INT")
+
+            ticker_df.to_sql(name=YF_QUARTERLY_TABLE_NAME,
+                             con=db_conn,
+                             if_exists='append',
+                             index=False)
+
+        db_conn.commit()
+
+        if os.path.exists(STOCK_GENERAL_INFO_CSV):
+            os.remove(STOCK_GENERAL_INFO_CSV)
+
+        general_df = pd.DataFrame({k: pd.Series(v) for k, v in full_ticker_info.items()})
+        general_df = general_df.transpose()
+        general_df.index.name = 'tickerSymbol'
+
+        with open(STOCK_GENERAL_INFO_CSV, 'w') as f:
+            f.write(general_df.to_csv())
+
+    finally:
+        if db_conn:
+            db_conn.close()
+
+    return full_ticker_info

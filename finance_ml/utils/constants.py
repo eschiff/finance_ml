@@ -1,12 +1,15 @@
 import pathlib
 import os
+import yfinance as yf
 
 UTILS_DIR = pathlib.Path(__file__).parent.absolute()
 
 DATA_PATH = os.path.join(UTILS_DIR, os.pardir, os.pardir, 'data')
 QUARTERLY_DB_NAME = 'quarterly_financial_data.db'
-QUARTERLY_TABLE_NAME = 'quarterly_financial_data'
+STOCKPUP_TABLE_NAME = 'stockpup_financial_data'
+YF_QUARTERLY_TABLE_NAME = 'yahoo_financial_data'
 QUARTERLY_DB_FILE_PATH = os.path.join(DATA_PATH, QUARTERLY_DB_NAME)
+STOCK_GENERAL_INFO_CSV = os.path.join(DATA_PATH, 'stock_general_info.csv')
 
 AVG_REC_PREFIX = 'AvgRecommendation_'
 
@@ -139,3 +142,29 @@ class QuarterlyColumns:
     P_E_RATIO = "PriceToEarningsRatio"
     ROE = "ROE"
     ROA = "ROA"
+    YEAR = "Year"
+    QUARTER = "Quarter"
+    SPLIT = "Split"
+    AVG_RECOMMENDATIONS = "AvgRecommendations"
+    EBIT = yf.FinancialColumns.Ebit.replace(' ', '')
+    NET_INCOME = yf.FinancialColumns.NetIncome.replace(' ', '')
+    GROSS_PROFIT = yf.FinancialColumns.GrossProfit.replace(' ', '')
+    TOTAL_REVENUE = yf.FinancialColumns.TotalRevenue.replace(' ', '')
+    RND = yf.FinancialColumns.RnD.replace(' ', '')
+    OPERATING_EXPENSES = yf.FinancialColumns.TotalOperatingExpenses.replace(' ', '')
+    INCOME_BEFORE_TAX = yf.FinancialColumns.IncomeBeforeTax.replace(' ', '')
+    INCOME_TAX_EXPENSE = yf.FinancialColumns.IncomeTaxExpense.replace(' ', '')
+    OPERATING_INCOME = yf.FinancialColumns.OperatingIncome.replace(' ', '')
+    DIVIDENDS_PAID = yf.CashflowColumns.DividendsPaid.replace(' ', '')
+    STOCK_REPURCHASED = yf.CashflowColumns.RepurchaseOfStock.replace(' ', '')
+    DEPRECIATION = yf.CashflowColumns.Depreciation.replace(' ', '')
+    STOCK_ISSUANCE = yf.CashflowColumns.IssuanceOfStock.replace(' ', '')
+    NET_BORROWINGS = yf.CashflowColumns.NetBorrowings.replace(' ', '')
+    INVESTMENTS = yf.CashflowColumns.Investments.replace(' ', '')
+    CASH = yf.BalanceSheetColumns.Cash.replace(' ', '')
+    STOCK = yf.BalanceSheetColumns.CommonStock.replace(' ', '')
+    TOTAL_ASSETS = yf.BalanceSheetColumns.TotalAssets.replace(' ', '')
+    TOTAL_LIABILITIES = yf.BalanceSheetColumns.TotalLiabilities.replace(' ', '')
+    LONG_TERM_DEBT = yf.BalanceSheetColumns.LongTermDebt.replace(' ', '')
+    SHORT_TERM_DEBT = yf.BalanceSheetColumns.ShortLongTermDebt.replace(' ', '')
+    STOCKHOLDER_EQUITY = yf.BalanceSheetColumns.TotalStockholderEquity.replace(' ', '')

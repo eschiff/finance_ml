@@ -1,25 +1,32 @@
 import yfinance as yf
 
+from finance_ml.utils.constants import QuarterlyColumns
+
 INFO_KEYS = [
     yf.TickerInfoKeys.sector,
     yf.TickerInfoKeys.marketCap,
     yf.TickerInfoKeys.shortName,
     yf.TickerInfoKeys.category,
+    yf.TickerInfoKeys.industry,
 ]
 
 FINANCIAL_KEYS = [
     yf.FinancialColumns.Ebit,
-    yf.FinancialColumns.NetIncome,
     yf.FinancialColumns.GrossProfit,
     yf.FinancialColumns.TotalRevenue,
     yf.FinancialColumns.RnD,
-    yf.FinancialColumns.TotalOperatingExpenses
+    yf.FinancialColumns.TotalOperatingExpenses,
+    yf.FinancialColumns.IncomeBeforeTax,
+    yf.FinancialColumns.IncomeTaxExpense,
+    yf.FinancialColumns.OperatingIncome
 ]
 
 CASHFLOW_KEYS = [
     yf.CashflowColumns.NetIncome,
     yf.CashflowColumns.DividendsPaid,
     yf.CashflowColumns.RepurchaseOfStock,
+    yf.CashflowColumns.Depreciation,
+    yf.CashflowColumns.IssuanceOfStock
 ]
 
 BALANCE_SHEET_KEYS = [
@@ -27,8 +34,8 @@ BALANCE_SHEET_KEYS = [
     yf.BalanceSheetColumns.CommonStock,
     yf.BalanceSheetColumns.TotalAssets,
     yf.BalanceSheetColumns.TotalLiabilities,
-    yf.BalanceSheetColumns.LongTermDebt,
-    yf.BalanceSheetColumns.ShortLongTermDebt
+    yf.BalanceSheetColumns.TotalStockholderEquity,
+    yf.BalanceSheetColumns.LongTermDebt
 ]
 
 # Converting grades to positive, neutral, or negative
@@ -53,3 +60,34 @@ RECOMMENDATION_GRADE_MAPPING = {
     yf.RecommendationGrades.Reduce: -1,
     yf.RecommendationGrades.Underweight: -1
 }
+
+YF_QUARTERLY_TABLE_SCHEMA = f'''
+    {QuarterlyColumns.TICKER_SYMBOL} TEXT,
+    {QuarterlyColumns.QUARTER} INT,
+    {QuarterlyColumns.YEAR} INT,
+    {QuarterlyColumns.PRICE_AVG} NUMERIC,
+    {QuarterlyColumns.PRICE_HI} NUMERIC,
+    {QuarterlyColumns.PRICE_LO} NUMERIC,
+    {QuarterlyColumns.PRICE_AT_END_OF_QUARTER} NUMERIC,
+    {QuarterlyColumns.AVG_RECOMMENDATIONS} TEXT,
+    {QuarterlyColumns.SPLIT} NUMERIC,
+    {QuarterlyColumns.EBIT} NUMERIC,
+    {QuarterlyColumns.GROSS_PROFIT} NUMERIC,
+    {QuarterlyColumns.TOTAL_REVENUE} NUMERIC,
+    {QuarterlyColumns.RND} NUMERIC,
+    {QuarterlyColumns.OPERATING_EXPENSES} NUMERIC,
+    {QuarterlyColumns.INCOME_BEFORE_TAX} NUMERIC,
+    {QuarterlyColumns.INCOME_TAX_EXPENSE} NUMERIC,
+    {QuarterlyColumns.OPERATING_INCOME} NUMERIC,
+    {QuarterlyColumns.NET_INCOME} NUMERIC,
+    {QuarterlyColumns.DIVIDENDS_PAID} NUMERIC,
+    {QuarterlyColumns.STOCK_REPURCHASED} NUMERIC,
+    {QuarterlyColumns.DEPRECIATION} NUMERIC,
+    {QuarterlyColumns.STOCK_ISSUANCE} NUMERIC,
+    {QuarterlyColumns.NET_BORROWINGS} NUMERIC,
+    {QuarterlyColumns.INVESTMENTS} NUMERIC,
+    {QuarterlyColumns.CASH} NUMERIC,
+    {QuarterlyColumns.STOCK} NUMERIC,
+    {QuarterlyColumns.TOTAL_ASSETS} NUMERIC,
+    {QuarterlyColumns.TOTAL_LIABILITIES} NUMERIC,
+    {QuarterlyColumns.LONG_TERM_DEBT} NUMERIC'''
