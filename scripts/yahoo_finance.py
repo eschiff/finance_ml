@@ -95,6 +95,8 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
 
     # Row Indexes are Quarter strings: '1Q2019'
     q_data = ticker.quarterly_earnings.copy()
+    if q_data.empty:
+        q_data = pd.DataFrame({col: [None] * len(q_indexes) for col in q_data.columns})
     q_data.index = q_indexes  # Replacing indexes, since the original can contain duplicates...
     q_data[QuarterlyColumns.TICKER_SYMBOL] = [ticker.ticker] * len(quarter_end_dates)
     q_data[QuarterlyColumns.YEAR] = q_data.index.to_series().apply(lambda i: int(i[-4:]))
