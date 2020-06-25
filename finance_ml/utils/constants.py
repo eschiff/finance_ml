@@ -13,6 +13,8 @@ STOCK_GENERAL_INFO_CSV = os.path.join(DATA_PATH, 'stock_general_info.csv')
 
 AVG_REC_PREFIX = 'AvgRecommendation_'
 
+MARKET_INDICES = ['DJI', 'VTSAX', '^IXIC', '^GSPC']
+
 
 class StockPupColumns:
     """
@@ -131,6 +133,7 @@ class QuarterlyColumns:
     PRICE_AT_END_OF_QUARTER = "PriceEoQ"
     DATE = "Date"
     SHARES = "Shares"
+    VOLUME = "Volume"
     ASSETS = "Assets"
     LIABILITIES = "Liabilities"
     LONG_TERM_DEBT = "LongTermDebt"

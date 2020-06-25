@@ -8,7 +8,7 @@ import re
 import json
 
 from finance_ml.utils.constants import (
-    QUARTERLY_DB_FILE_PATH, QuarterlyColumns, STOCKPUP_TABLE_NAME, AVG_REC_PREFIX,
+    QUARTERLY_DB_FILE_PATH, QuarterlyColumns, STOCKPUP_TABLE_NAME,
     YF_QUARTERLY_TABLE_NAME, STOCK_GENERAL_INFO_CSV)
 from scripts.yahoo_finance_constants import (
     INFO_KEYS, FINANCIAL_KEYS, BALANCE_SHEET_KEYS, CASHFLOW_KEYS, RECOMMENDATION_GRADE_MAPPING,
@@ -119,7 +119,7 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
     q_data = q_data.join(combined_data)
 
     # Add Average stock price data
-    for fn in (get_average_over_time_period, get_average_recommendations_over_time_period):
+    for fn in (get_average_price_over_time_period, get_average_recommendations_over_time_period):
         avg_data = fn(ticker=ticker,
                       start=quarter_end_dates[-1] - timedelta(days=13 * 7),
                       time_period=13 * 7)
@@ -153,10 +153,10 @@ def _get_start_end_time_period(start, end, time_period):
     return (start, end, time_period)
 
 
-def get_average_over_time_period(ticker: yf.Ticker,
-                                 start: datetime = None,
-                                 end: datetime = None,
-                                 time_period: Union[int, None] = None) -> pd.DataFrame:
+def get_average_price_over_time_period(ticker: yf.Ticker,
+                                       start: datetime = None,
+                                       end: datetime = None,
+                                       time_period: Union[int, None] = None) -> pd.DataFrame:
     """
     Compute Average data over a time period
     Args:
@@ -183,7 +183,9 @@ def get_average_over_time_period(ticker: yf.Ticker,
         period_data = ticker.history.loc[
             (ticker.history.index >= datetime(
                 period_start.year, period_start.month, period_start.day)) & (
-                    ticker.history.index < datetime(end.year, end.month, end.day))]
+                    ticker.history.index < datetime(period_end.year,
+                                                    period_end.month,
+                                                    period_end.day))]
 
         period_data = pd.DataFrame({
             QuarterlyColumns.TICKER_SYMBOL: [ticker.ticker],
@@ -192,7 +194,7 @@ def get_average_over_time_period(ticker: yf.Ticker,
             QuarterlyColumns.PRICE_LO: [period_data.Close.min()],
             QuarterlyColumns.PRICE_HI: [period_data.Close.max()],
             QuarterlyColumns.PRICE_AT_END_OF_QUARTER: [period_data.Close[-1]],
-            QuarterlyColumns.SHARES: [period_data.Volume[-1]]
+            QuarterlyColumns.VOLUME: [period_data.Volume[-1]]
         })
 
         output = pd.concat([output, period_data]).reset_index(drop=True)
@@ -264,6 +266,22 @@ def get_average_recommendations_over_time_period(
     return output
 
 
+def add_to_quarterly_database(df):
+    try:
+        db_conn = sqlite3.connect(QUARTERLY_DB_FILE_PATH)
+
+        df.to_sql(name=YF_QUARTERLY_TABLE_NAME,
+                  con=db_conn,
+                  if_exists='append',
+                  index=False)
+
+        db_conn.commit()
+
+    finally:
+        if db_conn:
+            db_conn.close()
+
+
 def build_quarterly_database():
     today = datetime.now()
 
@@ -323,3 +341,18 @@ def build_quarterly_database():
             db_conn.close()
 
     return full_ticker_info
+
+
+def get_quarterly_price_history(ticker, start):
+    price_history_df = get_average_price_over_time_period(ticker=ticker,
+                                                          start=start,
+                                                          time_period=13 * 7)
+
+    price_history_df[QuarterlyColumns.YEAR] = price_history_df[QuarterlyColumns.DATE].apply(
+        lambda d: d.year)
+    price_history_df[QuarterlyColumns.QUARTER] = price_history_df[QuarterlyColumns.DATE].apply(
+        lambda d: MONTH_TO_QUARTER[d.month])
+    price_history_df[QuarterlyColumns.SPLIT] = _build_split_data(ticker, price_history_df[
+        QuarterlyColumns.DATE])
+
+    return price_history_df
