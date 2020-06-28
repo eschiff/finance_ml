@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pandas as pd
 import sqlite3
 import yfinance as yf
@@ -28,6 +28,11 @@ MONTH_TO_QUARTER = {
     11: 4,
     12: 4
 }
+
+def _date_to_xQyyyy(dt: datetime.date):
+    q = MONTH_TO_QUARTER[dt.month]
+    year = dt.year - 1 if dt.month == 1 else dt.year
+    return f'{q}Q{year}'
 
 
 def _get_ticker_symbols_from_db():
@@ -91,7 +96,7 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
     """
     # most recent data is first
     quarter_end_dates = [date.date() for date in ticker.quarterly_balance_sheet.columns]
-    q_indexes = [f'{MONTH_TO_QUARTER[date.month]}Q{date.year}' for date in quarter_end_dates]
+    q_indexes = [_date_to_xQyyyy(date) for date in quarter_end_dates]
 
     # Row Indexes are Quarter strings: '1Q2019'
     q_data = ticker.quarterly_earnings.copy()
@@ -113,8 +118,7 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
         [key for key in CASHFLOW_KEYS if key in ticker.quarterly_cashflow.index]]
     combined_data = pd.concat([quarterly_balance_sheet, financial_data, cashflow_data])
     combined_data = combined_data.rename(
-        columns={date: f'{MONTH_TO_QUARTER[date.month]}Q{date.year}'
-                 for date in combined_data.columns}).transpose()
+        columns={date: _date_to_xQyyyy(date) for date in combined_data.columns}).transpose()
 
     q_data = q_data.join(combined_data)
 
@@ -356,3 +360,12 @@ def get_quarterly_price_history(ticker, start):
         QuarterlyColumns.DATE])
 
     return price_history_df
+
+
+def add_quarterly_price_history_to_db(ticker_symbols):
+    for symbol in ticker_symbols:
+        ticker = yf.Ticker(symbol)
+
+        df = get_quarterly_price_history(ticker, start=datetime(2018, 12, 28))
+
+        add_to_quarterly_database(df)
