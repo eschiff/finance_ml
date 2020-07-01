@@ -2,69 +2,67 @@ import glob
 import pandas as pd
 import os
 import sqlite3
+import numpy as np
 
 from finance_ml.utils.constants import (
-    StockPupColumns, QuarterlyColumns, DATA_PATH, QUARTERLY_DB_NAME,
-    QUARTERLY_TABLE_NAME, QUARTERLY_DB_FILE_PATH)
+    StockPupColumns, QuarterlyColumns, DATA_PATH,
+    STOCKPUP_TABLE_NAME, QUARTERLY_DB_FILE_PATH, YF_QUARTERLY_TABLE_NAME)
 
 
-def _(value):
-    if value in ['', 'None']:
-        return 'null'
-    else:
-        return str(value)
+def _(s):
+    return s.replace(' ', '')
 
 
-def _quarterly_data_column_map(row: pd.Series, ticker_symbol: str) -> dict:
-    column_map = {
-        QuarterlyColumns.TICKER_SYMBOL: f"'{ticker_symbol}'",
-        QuarterlyColumns.DATE: f"'{_(row[StockPupColumns.QUARTER_END])}'",
-        QuarterlyColumns.PRICE_AVG: _(row[StockPupColumns.PRICE]),
-        QuarterlyColumns.PRICE_HI: _(row[StockPupColumns.PRICE_HIGH]),
-        QuarterlyColumns.PRICE_LO: _(row[StockPupColumns.PRICE_LOW]),
-        QuarterlyColumns.SHARES: _(row[StockPupColumns.SHARES]),
-        QuarterlyColumns.ASSETS: _(row[StockPupColumns.ASSETS]),
-        QuarterlyColumns.LIABILITIES: _(row[StockPupColumns.LIABILITIES]),
-        QuarterlyColumns.LONG_TERM_DEBT: _(row[StockPupColumns.LONG_TERM_DEBT]),
-        QuarterlyColumns.REVENUE: _(row[StockPupColumns.REVENUE]),
-        QuarterlyColumns.EARNINGS: _(row[StockPupColumns.EARNINGS]),
-        QuarterlyColumns.DIVIDENDS_PER_SHARE: _(row[StockPupColumns.DIVIDEND_PER_SHARE]),
-        QuarterlyColumns.ASSET_TURNOVER: _(row[StockPupColumns.ASSET_TURNOVER]),
-        QuarterlyColumns.EPS: _(row[StockPupColumns.EPS_BASIC]),
-        QuarterlyColumns.P_E_RATIO: _(row[StockPupColumns.P_E_RATIO]),
-        QuarterlyColumns.ROE: _(row[StockPupColumns.ROE]),
-        QuarterlyColumns.ROA: _(row[StockPupColumns.ROA])
-    }
-
-    return column_map
-
-
-def build_quarterly_database():
+def build_stock_pup_database():
     data_files = glob.glob(os.path.join(DATA_PATH, 'stockpup_data', '*.csv'))
 
     try:
         db_conn = sqlite3.connect(QUARTERLY_DB_FILE_PATH)
 
-        command = f'''
-CREATE TABLE {QUARTERLY_TABLE_NAME} (
+        command = f'''CREATE TABLE {STOCKPUP_TABLE_NAME} (
     {QuarterlyColumns.TICKER_SYMBOL} TEXT,
-    {QuarterlyColumns.DATE} TEXT,
-    {QuarterlyColumns.PRICE_AVG} NUMERIC,
-    {QuarterlyColumns.PRICE_HI} NUMERIC,
-    {QuarterlyColumns.PRICE_LO} NUMERIC,
-    {QuarterlyColumns.SHARES} INT,
-    {QuarterlyColumns.ASSETS} INT,
-    {QuarterlyColumns.LIABILITIES} INT,
-    {QuarterlyColumns.LONG_TERM_DEBT} INT,
-    {QuarterlyColumns.REVENUE} INT,
-    {QuarterlyColumns.EARNINGS} INT,
-    {QuarterlyColumns.DIVIDENDS_PER_SHARE} NUMERIC,
-    {QuarterlyColumns.ASSET_TURNOVER} INT,
-    {QuarterlyColumns.EPS} NUMERIC,
-    {QuarterlyColumns.P_E_RATIO} NUMERIC,
-    {QuarterlyColumns.ROE} NUMERIC,
-    {QuarterlyColumns.ROA} NUMERIC,
-    PRIMARY KEY ({QuarterlyColumns.TICKER_SYMBOL}, {QuarterlyColumns.DATE})
+    {StockPupColumns.QUARTER_END} TEXT,
+    {StockPupColumns.SHARES} INT,
+    {StockPupColumns.SHARES_SPLIT_ADJUSTED} INT,
+    {StockPupColumns.SPLIT_FACTOR} INT,
+    {StockPupColumns.ASSETS} NUMERIC,
+    {StockPupColumns.CURRENT_ASSETS} NUMERIC ,
+    {StockPupColumns.LIABILITIES} NUMERIC,
+    {StockPupColumns.CURRENT_LIABILITIES} NUMERIC,
+    {StockPupColumns.SHAREHOLDER_EQUITY} NUMERIC,
+    {StockPupColumns.NON_CONTROLLING_INTEREST} NUMERIC,
+    {StockPupColumns.PREFERRED_EQUITY} NUMERIC ,
+    {StockPupColumns.GOODWILL_AND_INTANGIBLES} NUMERIC ,
+    {StockPupColumns.LONG_TERM_DEBT} TEXT,
+    {StockPupColumns.REVENUE} NUMERIC,
+    {StockPupColumns.EARNINGS} NUMERIC,
+    {StockPupColumns.EARNINGS_AVAILABLE_FOR_COMMON_STOCKHOLDERS} NUMERIC,
+    {StockPupColumns.EPS_BASIC} NUMERIC,
+    {StockPupColumns.EPS_DILUTED} NUMERIC,
+    {StockPupColumns.DIVIDEND_PER_SHARE} NUMERIC,
+    {StockPupColumns.CASH_FROM_OPERATING_ACTIVITES} NUMERIC,
+    {StockPupColumns.CASH_FROM_INVESTING_ACTIVITIES} NUMERIC ,
+    {StockPupColumns.CASH_FROM_FINANCING_ACTIVITES} NUMERIC ,
+    {StockPupColumns.CASH_CHANGE_DURING_PERIOD} NUMERIC,
+    {StockPupColumns.CASH_AT_END_OF_PERIOD} NUMERIC,
+    {StockPupColumns.CAPITAL_EXPENDITURES} NUMERIC,
+    {StockPupColumns.PRICE} NUMERIC,
+    {StockPupColumns.PRICE_HIGH} NUMERIC,
+    {StockPupColumns.PRICE_LOW} NUMERIC,
+    {StockPupColumns.ROE} NUMERIC,
+    {StockPupColumns.ROA} NUMERIC ,
+    {StockPupColumns.BOOK_VALUE_OF_EQUITY_PER_SHARE} NUMERIC ,
+    {StockPupColumns.P_B_RATIO} NUMERIC,
+    {StockPupColumns.P_E_RATIO} NUMERIC,
+    {StockPupColumns.CUM_DIVIDENDS_PER_SHARE} NUMERIC,
+    {StockPupColumns.DIVIDEND_PAYOUT_RATIO} NUMERIC,
+    {StockPupColumns.LONG_TERM_DEBT_TO_EQUITY_RATIO} NUMERIC,
+    {StockPupColumns.EQUITY_TO_ASSETS_RATIO} NUMERIC,
+    {StockPupColumns.NET_MARGIN} NUMERIC,
+    {StockPupColumns.ASSET_TURNOVER} NUMERIC,
+    {StockPupColumns.FREE_CASH_FLOW_PER_SHARE} NUMERIC ,
+    {StockPupColumns.CURRENT_RATIO} NUMERIC ,
+    PRIMARY KEY ({QuarterlyColumns.TICKER_SYMBOL}, {StockPupColumns.QUARTER_END})
 );'''
 
         print(f"Executing command: {command}")
@@ -76,25 +74,19 @@ CREATE TABLE {QUARTERLY_TABLE_NAME} (
 
             ticker_symbol = file_name.split('_')[-1]
             print(f"Found ticker symbol: {ticker_symbol}")
+            ticker_df = pd.read_csv(data_file_path)
 
-            df = pd.read_csv(data_file_path)
+            ticker_df.replace('None', value=np.nan, inplace=True)
 
             # First column is just row number
-            df.drop(columns=[df.columns[0]], inplace=True)
+            ticker_df.drop(columns=[ticker_df.columns[0]], inplace=True)
 
-            df[StockPupColumns.QUARTER_END] = pd.to_datetime(df[StockPupColumns.QUARTER_END])
+            ticker_df.to_sql(name=YF_QUARTERLY_TABLE_NAME,
+                             con=db_conn,
+                             if_exists='append',
+                             index=False)
 
-            for idx, row in df.iterrows():
-                column_map = _quarterly_data_column_map(row, ticker_symbol)
-
-                command = f'''
-INSERT INTO {QUARTERLY_TABLE_NAME} ({', '.join(column_map.keys())})
-VALUES({', '.join(column_map.values())}
-);'''
-                print(f"Executing command: {command}")
-                db_conn.execute(command)
-
-                db_conn.commit()
+        db_conn.commit()
 
     finally:
         if db_conn:

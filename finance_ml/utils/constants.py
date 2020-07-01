@@ -22,105 +22,105 @@ class StockPupColumns:
      of final restated values.
     """
     # Date Quarter Ends
-    QUARTER_END = 'Quarter end'
+    QUARTER_END = 'QuarterEnd'
     # The total number of common shares outstanding at the end of a given quarter, including all
     # classes of common stock.
     SHARES = 'Shares'
     # The number of shares the company had at the end of a given quarter, adjusted for splits to
     # be comparable to today's shares.
-    SHARES_SPLIT_ADJUSTED = 'Shares split adjusted'
+    SHARES_SPLIT_ADJUSTED = 'SharesSplitAdjusted'
     # If an investor started with 1 share of stock at the end of a given quarter, the split factor
     # for that quarter indicates how many shares the investor would own today as a result of
     # subsequent stock splits.
-    SPLIT_FACTOR = 'Split factor'
+    SPLIT_FACTOR = 'SplitFactor'
     # Total assets at the end of a quarter.
     ASSETS = 'Assets'
     # Current assets at the end of a quarter.
-    CURRENT_ASSETS = 'Current Assets'
+    CURRENT_ASSETS = 'CurrentAssets'
     # Total liabilities at the end of a quarter.
     LIABILITIES = 'Liabilities'
     # Current liabilities at the end of a quarter.
-    CURRENT_LIABILITIES = 'Current Liabilities'
+    CURRENT_LIABILITIES = 'CurrentLiabilities'
     # Total shareholders' equity at the end of a quarter, including both common and preferred
     # stockholders.
-    SHAREHOLDER_EQUITY = 'Shareholders equity'
+    SHAREHOLDER_EQUITY = 'ShareholdersEquity'
     # Non-controlling or minority interest, if any, excluded from Shareholders equity.
-    NON_CONTROLLING_INTEREST = 'Non-controlling interest'
+    NON_CONTROLLING_INTEREST = 'NonControllingInterest'
     # Preferred equity, if any, included in Shareholders equity.
-    PREFERRED_EQUITY = 'Preferred equity'
+    PREFERRED_EQUITY = 'PreferredEquity'
     # Total Goodwill and all other Intangible assets, if any.
-    GOODWILL_AND_INTANGIBLES = 'Goodwill & intangibles'
+    GOODWILL_AND_INTANGIBLES = 'GoodwillIntangibles'
     # All long-term debt including capital lease obligations.
-    LONG_TERM_DEBT = 'Long-term debt'
+    LONG_TERM_DEBT = 'LongTermDebt'
     # Total revenue for a given quarter.
     REVENUE = 'Revenue'
     # Earnings or Net Income for a given quarter.
     EARNINGS = 'Earnings'
     # Earnings available for common stockholders - Net income minus earnings that must be
     # distributed to preferred shareholders. May be omitted when not reported by the company.
-    EARNINGS_AVAILABLE_FOR_COMMON_STOCKHOLDERS = 'Earnings available for common stockholders'
+    EARNINGS_AVAILABLE_FOR_COMMON_STOCKHOLDERS = 'EarningsAvailableForCommonStockholders'
     # Basic earnings per share for a given quarter.
-    EPS_BASIC = 'EPS basic'
+    EPS_BASIC = 'EPS_basic'
     # Diluted earnings per share.
-    EPS_DILUTED = 'EPS diluted'
+    EPS_DILUTED = 'EPS_diluted'
     # Common stock dividends paid during a quarter per share, including all regular and special
     # dividends and distributions to common shareholders.
-    DIVIDEND_PER_SHARE = 'Dividend per share'
+    DIVIDEND_PER_SHARE = 'DividendPerShare'
     # Cash produced by operating activities during a given quarter, including Continuing and
     # Discontinued operations.
-    CASH_FROM_OPERATING_ACTIVITES = 'Cash from operating activities'
+    CASH_FROM_OPERATING_ACTIVITES = 'CashFromOperatingActivities'
     # Cash produced by investing activities during a given quarter, including Continuing and
     # Discontinued operations.
-    CASH_FROM_INVESTING_ACTIVITIES = 'Cash from investing activities'
+    CASH_FROM_INVESTING_ACTIVITIES = 'CashFromInvestingActivities'
     # Cash produced by financing activities during a given quarter, including Continuing and
     # Discontinued operations.
-    CASH_FROM_FINANCING_ACTIVITES = 'Cash from financing activities'
+    CASH_FROM_FINANCING_ACTIVITES = 'CashFromFinancingActivities'
     # Change in cash and cash equivalents during a given quarter, including Effect of Exchange
     # Rate Movements and Other Cash Change Adjustments, if any.
-    CASH_CHANGE_DURING_PERIOD = 'Cash change during period'
+    CASH_CHANGE_DURING_PERIOD = 'CashChangeDuringPeriod'
     # Cash and cash equivalents at the end of a quarter, including Continuing and
     # Discontinued operations.
-    CASH_AT_END_OF_PERIOD = 'Cash at end of period'
+    CASH_AT_END_OF_PERIOD = 'CashAtEndOfPeriod'
     # Capital Expenditures are the cash outflows for long-term productive assets, net of cash
     # from disposals of capital assets.
-    CAPITAL_EXPENDITURES = 'Capital expenditures'
+    CAPITAL_EXPENDITURES = 'CapitalExpenditures'
     # The medium price per share of the company common stock during a given quarter. The prices
     # are as reported, and are not adjusted for subsequent dividends.
     PRICE = 'Price'  # Average price during quarter
     # The highest price per share of the company common stock during a given quarter.
-    PRICE_HIGH = 'Price high'
+    PRICE_HIGH = 'PriceHigh'
     # The lowest price of the company common stock during a quarter.
-    PRICE_LOW = 'Price low'
+    PRICE_LOW = 'PriceLow'
     # Return on equity is the ratio of Earnings (available to common stockholders)
     # TTM (over the Trailing Twelve Months) to TTM average common shareholders' equity.
     ROE = 'ROE'
     # Return on assets is the ratio of total Earnings TTM to TTM average Assets.
     ROA = 'ROA'
     # Common stockholders' equity per share, also known as BVPS.
-    BOOK_VALUE_OF_EQUITY_PER_SHARE = 'Book value of equity per share'
+    BOOK_VALUE_OF_EQUITY_PER_SHARE = 'BookValueOfEquityPerShare'
     # The ratio of Price to Book value of equity per share as of the previous quarter.
-    P_B_RATIO = 'P/B ratio'
+    P_B_RATIO = 'P_B_ratio'
     # The ratio of Price to EPS diluted TTM as of the previous quarter.
-    P_E_RATIO = 'P/E ratio'
+    P_E_RATIO = 'P_E_ratio'
     # The aggregate amount of dividends paid per split-adjusted share of common stock from the
     # first available reporting quarter until a given quarter.
-    CUM_DIVIDENDS_PER_SHARE = 'Cumulative dividends per share'
+    CUM_DIVIDENDS_PER_SHARE = 'CumulativeDividendsPerShare'
     # The ratio of Dividends TTM to Earnings (available to common stockholders) TTM.
-    DIVIDEND_PAYOUT_RATIO = 'Dividend payout ratio'
+    DIVIDEND_PAYOUT_RATIO = 'DividendPayoutRatio'
     # The ratio of Long-term debt to common shareholders' equity (Shareholders equity minus
     # Preferred equity).
-    LONG_TERM_DEBT_TO_EQUITY_RATIO = 'Long-term debt to equity ratio'
+    LONG_TERM_DEBT_TO_EQUITY_RATIO = 'LongTermDebtToEquityRatio'
     # The ratio of common shareholders' equity (Shareholders equity minus Preferred equity) to
     # Assets.
-    EQUITY_TO_ASSETS_RATIO = 'Equity to assets ratio'
+    EQUITY_TO_ASSETS_RATIO = 'EquityToAssetsRatio'
     # The ratio of Earnings (available for common stockholders) TTM to Revenue TTM.
-    NET_MARGIN = 'Net margin'
+    NET_MARGIN = 'NetMargin'
     # The ratio of Revenue TTM to TTM average Assets.
-    ASSET_TURNOVER = 'Asset turnover'
+    ASSET_TURNOVER = 'AssetTurnover'
     # Cash from operating activities minus the Capital Expenditures for a quarter.
-    FREE_CASH_FLOW_PER_SHARE = 'Free cash flow per share'
+    FREE_CASH_FLOW_PER_SHARE = 'FreeCashFlowPerShare'
     # The ratio of Current assets to Current liabilities.
-    CURRENT_RATIO = 'Current ratio'
+    CURRENT_RATIO = 'CurrentRatio'
 
 
 class QuarterlyColumns:
@@ -132,6 +132,7 @@ class QuarterlyColumns:
     PRICE_LO = 'PriceLow'
     PRICE_AT_END_OF_QUARTER = 'PriceEoQ'
     AVG_RECOMMENDATIONS = 'AvgRecommendations'
+    AVG_RECOMMENDATION_SCORE = 'AvgRecommendationScore'
     SPLIT = 'Split'
     EBIT = 'Ebit'
     PROFIT = 'GrossProfit'
@@ -139,7 +140,7 @@ class QuarterlyColumns:
     RND = 'ResearchDevelopment'
     OPERATING_EXPENSES = 'TotalOperatingExpenses'
     INCOME_PRETAX = 'IncomeBeforeTax'
-    INCOME_TAX = 'InomeTaxExpense'
+    INCOME_TAX = 'IncomeTaxExpense'
     OPERATING_INCOME = 'OperatingIncome'
     NET_INCOME = 'NetIncome'
     DIVIDENDS = 'DividendsPaid'
@@ -152,17 +153,27 @@ class QuarterlyColumns:
     COMMON_STOCK = 'CommonStock'
     ASSETS = 'TotalAssets'
     LIABILITIES = 'TotalLiab'
-    DEBT = 'LongTermDebt'
+    DEBT_LONG = 'LongTermDebt'
+    DEBT_SHORT = 'ShortLongTermDebt'
     DATE = 'Date'
     VOLUME = 'Volume'
     EARNINGS = 'Earnings'
     STOCKHOLDER_EQUITY = 'TotalStockholderEquity'
     VOLATILITY = 'Volatility'
-
+    SECTOR = 'Sector'
+    INDUSTRY = 'Industry'
+    MARKET_CAP = 'MarketCap'
+    AGE_OF_DATA = 'AgeOfData'
+    WORKING_CAPITAL_RATIO = 'AssetsToLiabilitiesRatio'
+    AVG_PE_RATIO = 'AvgPriceToEarningsRatio'
+    DEBT_EQUITY_RATIO = 'DebtToEquityRatio'
+    ROE = 'ReturnOnEquity'
+    PRICE_BOOK_RATIO = 'PriceToBookRatio'
+    FCF = 'FreeCashFlow'
+    PROFIT_MARGIN = 'ProfitMargin'
 
     PRICE_AVG_VS_DJI = 'AveragePriceComparedToDJI'
     VOLATILITY_VS_DJI = 'VolatilityComparedToDJI'
-
 
 
 CATEGORICAL_COLUMNS = [
@@ -219,8 +230,9 @@ VS_MARKET_INDICES_COLUMNS = [
     QuarterlyColumns.VOLATILITY,
 ]
 
-
 FORMULAE = {
-    QuarterlyColumns.VOLATILITY: lambda row: (row[QuarterlyColumns.PRICE_HI] - row[QuarterlyColumns.PRICE_LO]) / row[QuarterlyColumns.PRICE_AVG],
-    QuarterlyColumns.CURRENT_RATIO: lambda row: row[QuarterlyColumns.ASSETS] / row[QuarterlyColumns.LIABILITIES]
+    QuarterlyColumns.VOLATILITY: lambda row: (row[QuarterlyColumns.PRICE_HI] - row[
+        QuarterlyColumns.PRICE_LO]) / row[QuarterlyColumns.PRICE_AVG],
+    QuarterlyColumns.CURRENT_RATIO: lambda row: row[QuarterlyColumns.ASSETS] / row[
+        QuarterlyColumns.LIABILITIES]
 }
