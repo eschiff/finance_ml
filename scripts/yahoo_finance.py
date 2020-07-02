@@ -355,9 +355,9 @@ def get_quarterly_price_history(ticker, start):
                                                           time_period=13 * 7)
 
     price_history_df[QuarterlyColumns.YEAR] = price_history_df[QuarterlyColumns.DATE].apply(
-        lambda d: d.year)
+        lambda d: int(_date_to_xQyyyy(d)[-4:]))
     price_history_df[QuarterlyColumns.QUARTER] = price_history_df[QuarterlyColumns.DATE].apply(
-        lambda d: MONTH_TO_QUARTER[d.month])
+        lambda d: int(_date_to_xQyyyy(d)[0]))
     price_history_df[QuarterlyColumns.SPLIT] = _build_split_data(ticker, price_history_df[
         QuarterlyColumns.DATE])
 
