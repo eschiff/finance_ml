@@ -98,13 +98,13 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
     """
     # most recent data is first
     quarter_end_dates = [date.date() for date in ticker.quarterly_balance_sheet.columns]
-    q_indexes = [_date_to_xQyyyy(date) for date in quarter_end_dates]
+    q_indexes = [f'{_date_to_xQyyyy(date)}' for date in quarter_end_dates]
 
     # Row Indexes are Quarter strings: '1Q2019'
     q_data = ticker.quarterly_earnings.copy()
     if q_data.empty:
         q_data = pd.DataFrame({col: [None] * len(q_indexes) for col in q_data.columns})
-    q_data.index = q_indexes  # Replacing indexes, since the original can contain duplicates...
+    q_data.index = q_indexes
     q_data[QuarterlyColumns.TICKER_SYMBOL] = [ticker.ticker] * len(quarter_end_dates)
     q_data[QuarterlyColumns.YEAR] = q_data.index.to_series().apply(lambda i: int(i[-4:]))
     q_data[QuarterlyColumns.QUARTER] = q_data.index.to_series().apply(lambda i: int(i[0]))
@@ -120,7 +120,8 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
         [key for key in CASHFLOW_KEYS if key in ticker.quarterly_cashflow.index]]
     combined_data = pd.concat([quarterly_balance_sheet, financial_data, cashflow_data])
     combined_data = combined_data.rename(
-        columns={date: _date_to_xQyyyy(date) for date in combined_data.columns}).transpose()
+        columns={date: f'{_date_to_xQyyyy(date)}'
+                 for date in combined_data.columns}).transpose()
 
     q_data = q_data.join(combined_data)
 
@@ -134,15 +135,15 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
             continue
 
         avg_data['Quarter'] = avg_data[QuarterlyColumns.DATE].apply(
-            lambda d: f'{MONTH_TO_QUARTER[d.month]}Q{d.year}')
-        avg_data.drop(columns=[QuarterlyColumns.DATE, QuarterlyColumns.TICKER_SYMBOL],
-                      inplace=True)
+            lambda d: f'{_date_to_xQyyyy(d)}')
+        avg_data.drop(columns=[QuarterlyColumns.DATE, QuarterlyColumns.TICKER_SYMBOL], inplace=True)
         avg_data.set_index(['Quarter'], inplace=True)
 
         q_data = q_data.join(avg_data)
 
     q_data.reset_index(drop=True, inplace=True)
     q_data[QuarterlyColumns.DATE] = quarter_end_dates
+    q_data[QuarterlyColumns.MARKET_CAP] = info.get('marketCap', 'NULL')
 
     # Remove duplicate columns
     q_data = q_data.loc[:, ~q_data.columns.duplicated()]
@@ -433,3 +434,55 @@ def add_stockpup_data_to_db():
     db_conn.commit()
 
     db_conn.close()
+
+
+def update_quarterly_database():
+    today = datetime.now()
+
+    try:
+        db_conn = sqlite3.connect(QUARTERLY_DB_FILE_PATH)
+
+        ticker_symbols = _get_ticker_symbols_from_db()
+
+        for ticker_symbol in ticker_symbols:
+            if ticker_symbol in MARKET_INDICES:
+                continue
+
+            print(f'Adding: {ticker_symbol}')
+            ticker = yf.Ticker(ticker_symbol)
+
+            if ticker.quarterly_balance_sheet.empty or today - \
+                    ticker.quarterly_balance_sheet.columns[0] > timedelta(days=90):
+                continue
+
+            ticker_info, ticker_df = get_quarterly_data(ticker)
+            ticker_df = ticker_df.rename(
+                columns={col: re.compile('[\W_]+').sub('', col) for col in ticker_df.columns})
+
+            dates_to_drop = []
+
+            for i, row in ticker_df.iterrows():
+                resp = db_conn.execute(f"""SELECT * FROM {YF_QUARTERLY_TABLE_NAME}
+WHERE {QuarterlyColumns.TICKER_SYMBOL}='{row[QuarterlyColumns.TICKER_SYMBOL]}' AND
+    {QuarterlyColumns.QUARTER}={row[QuarterlyColumns.QUARTER]} AND
+    {QuarterlyColumns.YEAR}={row[QuarterlyColumns.YEAR]}""")
+
+                if resp.fetchone():
+                    dates_to_drop.append(row[QuarterlyColumns.DATE])
+
+            ticker_df = ticker_df[
+                ticker_df.apply(lambda r: r[QuarterlyColumns.DATE] not in dates_to_drop, axis=1)]
+
+            if not ticker_df.empty:
+                ticker_df.to_sql(name=YF_QUARTERLY_TABLE_NAME,
+                                 con=db_conn,
+                                 if_exists='append',
+                                 index=False)
+            else:
+                print("NOTHING ADDED")
+
+        db_conn.commit()
+
+    finally:
+        if db_conn:
+            db_conn.close()
