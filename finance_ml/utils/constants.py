@@ -1,6 +1,6 @@
 import pathlib
 import os
-import yfinance as yf
+import yfinance_ez as yf
 
 UTILS_DIR = pathlib.Path(__file__).parent.absolute()
 
@@ -13,6 +13,20 @@ STOCK_GENERAL_INFO_CSV = os.path.join(DATA_PATH, 'stock_general_info.csv')
 
 MARKET_INDICES = ['^DJI', 'VTSAX', '^IXIC', '^GSPC', '^RUT', '^NYA']
 
+MONTH_TO_QUARTER = {
+    1: 4,
+    2: 1,
+    3: 1,
+    4: 1,
+    5: 2,
+    6: 2,
+    7: 2,
+    8: 3,
+    9: 3,
+    10: 3,
+    11: 4,
+    12: 4
+}
 
 class StockPupColumns:
     """

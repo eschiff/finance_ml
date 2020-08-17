@@ -1,4 +1,4 @@
-import yfinance as yf
+import yfinance_ez as yf
 
 from finance_ml.utils.constants import QuarterlyColumns
 
