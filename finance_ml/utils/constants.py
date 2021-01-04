@@ -1,15 +1,27 @@
 import pathlib
 import os
 import yfinance_ez as yf
+from datetime import datetime
+
+TICKER_SYMBOL, QUARTER, YEAR = 0, 1, 2
+TARGET_COLUMN = 'PredictedPrice'
 
 UTILS_DIR = pathlib.Path(__file__).parent.absolute()
 
 DATA_PATH = os.path.join(UTILS_DIR, os.pardir, os.pardir, 'data')
 QUARTERLY_DB_NAME = 'quarterly_financial_data.db'
-STOCKPUP_TABLE_NAME = 'stockpup_financial_data'
+STOCKPUP_TABLE_NAME = 'stockpup_data'
 YF_QUARTERLY_TABLE_NAME = 'yahoo_financial_data'
 QUARTERLY_DB_FILE_PATH = os.path.join(DATA_PATH, QUARTERLY_DB_NAME)
 STOCK_GENERAL_INFO_CSV = os.path.join(DATA_PATH, 'stock_general_info.csv')
+
+MISSING_SECTOR = 'MissingSector'
+MISSING_INDUSTRY = 'MissingIndustry'
+
+Q_DELTA_PREFIX = 'Q_Delta_'
+YOY_DELTA_PREFIX = 'YOY_Delta_'
+VS_MKT_IDX = '_vs_'
+AVG_REC_SCORE_PREFIX = 'AvgRecScore_'
 
 MARKET_INDICES = ['^DJI', 'VTSAX', '^IXIC', '^GSPC', '^RUT', '^NYA']
 
@@ -27,6 +39,7 @@ MONTH_TO_QUARTER = {
     11: 4,
     12: 4
 }
+
 
 class StockPupColumns:
     """
@@ -185,15 +198,19 @@ class QuarterlyColumns:
     PRICE_BOOK_RATIO = 'PriceToBookRatio'
     FCF = 'FreeCashFlow'
     PROFIT_MARGIN = 'ProfitMargin'
-
     PRICE_AVG_VS_DJI = 'AveragePriceComparedToDJI'
     VOLATILITY_VS_DJI = 'VolatilityComparedToDJI'
+
+    @staticmethod
+    def columns():
+        return [getattr(QuarterlyColumns, col) for col in dir(QuarterlyColumns) if
+                col[0] != '_' and col != 'columns']
 
 
 CATEGORICAL_COLUMNS = [
     QuarterlyColumns.QUARTER,
-    yf.TickerInfoKeys.sector,
-    yf.TickerInfoKeys.industry,
+    QuarterlyColumns.SECTOR,
+    QuarterlyColumns.INDUSTRY
 ]
 
 NUMERIC_COLUMNS = [
@@ -218,7 +235,8 @@ NUMERIC_COLUMNS = [
     QuarterlyColumns.COMMON_STOCK,
     QuarterlyColumns.ASSETS,
     QuarterlyColumns.LIABILITIES,
-    QuarterlyColumns.DEBT,
+    QuarterlyColumns.DEBT_LONG,
+    QuarterlyColumns.DEBT_SHORT,
     QuarterlyColumns.STOCKHOLDER_EQUITY,
     QuarterlyColumns.VOLUME,
     QuarterlyColumns.EARNINGS
@@ -245,8 +263,36 @@ VS_MARKET_INDICES_COLUMNS = [
 ]
 
 FORMULAE = {
-    QuarterlyColumns.VOLATILITY: lambda row: (row[QuarterlyColumns.PRICE_HI] - row[
-        QuarterlyColumns.PRICE_LO]) / row[QuarterlyColumns.PRICE_AVG],
-    QuarterlyColumns.CURRENT_RATIO: lambda row: row[QuarterlyColumns.ASSETS] / row[
-        QuarterlyColumns.LIABILITIES]
+    QuarterlyColumns.VOLATILITY:
+        lambda row: (row[QuarterlyColumns.PRICE_HI] - row[QuarterlyColumns.PRICE_LO]) / row[
+            QuarterlyColumns.PRICE_AVG],
+
+    QuarterlyColumns.WORKING_CAPITAL_RATIO:
+        lambda row: (row[QuarterlyColumns.ASSETS] / row[QuarterlyColumns.LIABILITIES]),
+
+    QuarterlyColumns.AGE_OF_DATA:
+        lambda row: (datetime.now().date() - datetime.strptime(row[QuarterlyColumns.DATE],
+                                                               '%Y-%m-%d').date()).days / 90,
+
+    QuarterlyColumns.AVG_PE_RATIO: lambda row: (
+            row[QuarterlyColumns.PRICE_AVG] / row[QuarterlyColumns.EARNINGS]),
+
+    QuarterlyColumns.DEBT_EQUITY_RATIO:
+        lambda row: (row[QuarterlyColumns.DEBT_LONG] + row[QuarterlyColumns.DEBT_SHORT]) / row[
+            QuarterlyColumns.STOCKHOLDER_EQUITY],
+
+    QuarterlyColumns.ROE:
+        lambda row: (row[QuarterlyColumns.EARNINGS] - row[QuarterlyColumns.DIVIDENDS]) / row[
+            QuarterlyColumns.STOCKHOLDER_EQUITY],
+
+    QuarterlyColumns.PRICE_BOOK_RATIO:
+        lambda row: (row[QuarterlyColumns.ASSETS] - row[QuarterlyColumns.LIABILITIES]) / row[
+            QuarterlyColumns.MARKET_CAP],
+
+    QuarterlyColumns.PROFIT_MARGIN:
+        lambda row: (row[QuarterlyColumns.NET_INCOME] / row[QuarterlyColumns.REVENUE])
 }
+
+INDEX_COLUMNS = [QuarterlyColumns.TICKER_SYMBOL,
+                 QuarterlyColumns.QUARTER,
+                 QuarterlyColumns.YEAR]

@@ -1,19 +1,9 @@
-from datetime import datetime, timedelta, date
 import pandas as pd
 import sqlite3
-import yfinance_ez as yf
-from typing import Union, Tuple, Dict, List
-import glob
-import os
-import re
-import json
+from typing import Tuple
 
 from finance_ml.utils.constants import (
-    QUARTERLY_DB_FILE_PATH, DATA_PATH, QuarterlyColumns, STOCKPUP_TABLE_NAME,
-    YF_QUARTERLY_TABLE_NAME, STOCK_GENERAL_INFO_CSV, StockPupColumns)
-from scripts.yahoo_finance_constants import (
-    INFO_KEYS, FINANCIAL_KEYS, BALANCE_SHEET_KEYS, CASHFLOW_KEYS, RECOMMENDATION_GRADE_MAPPING,
-    YF_QUARTERLY_TABLE_SCHEMA)
+    QUARTERLY_DB_FILE_PATH, QuarterlyColumns, STOCKPUP_TABLE_NAME)
 
 
 def get_ticker_symbols(source='DB'):
@@ -25,10 +15,27 @@ def get_ticker_symbols(source='DB'):
     '''
             print(f"Executing command: {command}")
             result = db_conn.execute(command)
-            return [symbol[0] for symbol in result.fetchall()]
+            tickers = [symbol[0] for symbol in result.fetchall()]
+            tickers.extend(['SNOW', 'ABNB'])
+            return tickers
 
         finally:
             if db_conn:
                 db_conn.close()
     else:
         raise NotImplementedError
+
+
+def split_feature_target(df: pd.DataFrame, target_col: str) -> Tuple[pd.DataFrame, pd.Series]:
+    """
+    Split processed data into features and target.
+
+    :param df: processed data for model training.
+    :param target_col: target column name.
+    :return: X: features for model training.
+             y: targets for model training.
+    """
+    X = df.drop(target_col, axis=1)
+    y = df[target_col]
+
+    return X, y
