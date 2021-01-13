@@ -21,10 +21,12 @@ def main(hyperparams: Hyperparams):
                      QuarterlyColumns.PRICE_LO,
                      QuarterlyColumns.PRICE_AVG,
                      QuarterlyColumns.PRICE_AT_END_OF_QUARTER,
-                     QuarterlyColumns.AVG_RECOMMENDATION_SCORE,
+                     # QuarterlyColumns.AVG_RECOMMENDATION_SCORE,
                      QuarterlyColumns.SPLIT,
                      QuarterlyColumns.INVESTMENTS,
-                     QuarterlyColumns.NET_BORROWINGS], inplace=True)
+                     QuarterlyColumns.NET_BORROWINGS,
+                     QuarterlyColumns.DATE,
+                     ], inplace=True)
 
     feature_columns = list(set(df.columns).difference({TARGET_COLUMN, *CATEGORICAL_COLUMNS}))
 

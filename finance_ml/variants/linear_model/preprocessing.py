@@ -265,6 +265,4 @@ def compare_to_market_indices(
                                                market_indices=hyperparams.MARKET_INDICES,
                                                market_index_df=market_index_df)
 
-    df.dropna(subset=vs_market_indices_col_names, inplace=True)
-
     return df

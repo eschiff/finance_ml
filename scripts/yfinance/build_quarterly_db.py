@@ -1,20 +1,15 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 import pandas as pd
 import sqlite3
 import yfinance_ez as yf
-from typing import Union, Tuple, Dict, List
 import glob
 import os
 import re
-import json
 
 from finance_ml.utils.constants import (
-    QUARTERLY_DB_FILE_PATH, DATA_PATH, QuarterlyColumns, STOCKPUP_TABLE_NAME,
+    QUARTERLY_DB_FILE_PATH, DATA_PATH, QuarterlyColumns,
     YF_QUARTERLY_TABLE_NAME, STOCK_GENERAL_INFO_CSV, StockPupColumns, MONTH_TO_QUARTER)
-from scripts.yahoo_finance_constants import (
-    INFO_KEYS, FINANCIAL_KEYS, BALANCE_SHEET_KEYS, CASHFLOW_KEYS, RECOMMENDATION_GRADE_MAPPING,
-    YF_QUARTERLY_TABLE_SCHEMA)
-
+from scripts.yahoo_finance_constants import (YF_QUARTERLY_TABLE_SCHEMA)
 
 from finance_ml.utils.utils import get_ticker_symbols
 

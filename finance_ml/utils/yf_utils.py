@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 import yfinance_ez as yf
-from typing import Union, List, Tuple
+from typing import Union, List
 import pandas as pd
 import json
 
-
+from scripts.yahoo_finance_constants import RECOMMENDATION_GRADE_MAPPING
 from finance_ml.utils.constants import QuarterlyColumns, MONTH_TO_QUARTER
 
 
@@ -14,8 +14,8 @@ def date_to_xQyyyy(dt: datetime.date):
     return f'{q}Q{year}'
 
 
-def _get_start_end_time_period(start: Union[datetime, None], 
-                               end: Union[datetime, None], 
+def _get_start_end_time_period(start: Union[datetime, None],
+                               end: Union[datetime, None],
                                time_period: int):
     now = datetime.now().date()
     start = now - timedelta(days=time_period) if (start is None and time_period is not None) \
@@ -43,9 +43,7 @@ def get_average_price_over_time_period(ticker: yf.Ticker,
         End of Quarter Price, and shares
     """
     start, end, time_period = _get_start_end_time_period(start, end, time_period)
-
     ticker.get_history(start=start, end=end)
-
     output = pd.DataFrame()
 
     period_start = start

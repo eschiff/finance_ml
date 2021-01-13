@@ -16,7 +16,6 @@ def get_ticker_symbols(source='DB'):
             print(f"Executing command: {command}")
             result = db_conn.execute(command)
             tickers = [symbol[0] for symbol in result.fetchall()]
-            tickers.extend(['SNOW', 'ABNB'])
             return tickers
 
         finally:

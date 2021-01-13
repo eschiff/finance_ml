@@ -73,3 +73,6 @@ class QuarterlyIndex:
 
     def to_date(self, day=1):
         return datetime(self.year, self.quarter * 3, day).date()
+
+    def to_xQyyyy(self) -> str:
+        return f"{self.quarter}Q{self.year}"
