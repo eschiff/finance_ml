@@ -1,11 +1,26 @@
+from lightgbm import LGBMRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn import metrics
 import numpy as np
 
+from finance_ml.variants.linear_model.hyperparams import Hyperparams
 
-def train_and_evaluate(X_train, y_train, X_test, y_test):
-    model = LinearRegression(fit_intercept=True,
-                             normalize=True).fit(X_train, y_train)
+
+def train_and_evaluate(hyperparams: Hyperparams, X_train, y_train, X_test, y_test):
+    if hyperparams.MODEL is LinearRegression:
+        model = LinearRegression(fit_intercept=True,
+                                 normalize=True).fit(X_train, y_train)
+    elif hyperparams.MODEL is LGBMRegressor:
+        model = LGBMRegressor(boosting_type='gbdt',
+                              num_leaves=hyperparams.NUM_LEAVES,
+                              max_depth=hyperparams.MAX_DEPTH,
+                              learning_rate=hyperparams.LEARNING_RATE,
+                              n_estimators=hyperparams.N_ESTIMATORS,
+                              random_state=hyperparams.RANDOM_SEED)
+
+        model.fit(X=X_train, y=y_train)
+
+        print(f"Feature Importances: {model._feature_importances}")
 
     for i, col in enumerate(X_train.columns):
         print(f'The coefficient for {col} is {model.coef_[i]}')

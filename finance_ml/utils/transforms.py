@@ -8,6 +8,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from typing import List
 from sklearn.compose import ColumnTransformer
 
+from finance_ml.utils.quarterly_index import QuarterlyIndex
 from finance_ml.utils.constants import TARGET_COLUMN, INDEX_COLUMNS, QuarterlyColumns
 from finance_ml.utils.utils import split_feature_target
 
@@ -226,4 +227,34 @@ class DateFilter(BaseEstimator, TransformerMixin):
                 pd.to_datetime(X[self.date_column]) < self.end_date)]
         print(f'DateFilter removed {X.shape[0] - X_new.shape[0]} rows')
         print(f"DateFilter output size: {X_new.shape}")
+        return X_new
+
+
+class QuarterFilter(BaseEstimator, TransformerMixin):
+    def __init__(self, start_date: date, end_date: date):
+        start_quarter = QuarterlyIndex.from_date(start_date)
+        end_quarter = QuarterlyIndex.from_date(end_date)
+        self.q_start = start_quarter.quarter
+        self.y_start = start_quarter.year
+        self.q_end = end_quarter.quarter
+        self.y_end = end_quarter.year
+
+    def fit(self, X):
+        return self
+
+    def transform(self, X):
+        X_new = X[(
+            (X.index.get_level_values(QuarterlyColumns.YEAR) > self.y_start) | (
+                (X.index.get_level_values(QuarterlyColumns.QUARTER) >= self.q_start) & (
+                    X.index.get_level_values(QuarterlyColumns.YEAR) == self.y_start)
+                )
+        ) & (
+            (X.index.get_level_values(QuarterlyColumns.YEAR) < self.y_end) | (
+                (X.index.get_level_values(QuarterlyColumns.QUARTER) < self.q_end) & (
+                X.index.get_level_values(QuarterlyColumns.YEAR) == self.y_end)
+            )
+        )]
+
+        print(f'QuarterFilter removed {X.shape[0] - X_new.shape[0]} rows')
+        print(f"QuarterFilter output size: {X_new.shape}")
         return X_new

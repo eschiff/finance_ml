@@ -1,7 +1,5 @@
 import pathlib
 import os
-import yfinance_ez as yf
-from datetime import datetime
 
 TICKER_SYMBOL, QUARTER, YEAR = 0, 1, 2
 TARGET_COLUMN = 'PredictedPrice'
@@ -198,8 +196,7 @@ class QuarterlyColumns:
     PRICE_BOOK_RATIO = 'PriceToBookRatio'
     FCF = 'FreeCashFlow'
     PROFIT_MARGIN = 'ProfitMargin'
-    PRICE_AVG_VS_DJI = 'AveragePriceComparedToDJI'
-    VOLATILITY_VS_DJI = 'VolatilityComparedToDJI'
+    RND_TO_EARNINGS = 'RnDtoEarnings'
 
     @staticmethod
     def columns():
@@ -208,7 +205,6 @@ class QuarterlyColumns:
 
 
 CATEGORICAL_COLUMNS = [
-    QuarterlyColumns.QUARTER,
     QuarterlyColumns.SECTOR,
     QuarterlyColumns.INDUSTRY
 ]
@@ -239,26 +235,12 @@ NUMERIC_COLUMNS = [
     QuarterlyColumns.DEBT_SHORT,
     QuarterlyColumns.STOCKHOLDER_EQUITY,
     QuarterlyColumns.VOLUME,
-    QuarterlyColumns.EARNINGS
+    QuarterlyColumns.EARNINGS,
 ]
 
-DELTA_COLUMNS = [
-    QuarterlyColumns.PRICE_AVG,
-    QuarterlyColumns.VOLATILITY,
-    QuarterlyColumns.EBIT,
-    QuarterlyColumns.PROFIT,
-    QuarterlyColumns.REVENUE,
-    QuarterlyColumns.OPERATING_EXPENSES,
-    QuarterlyColumns.NET_INCOME,
-    QuarterlyColumns.CASH,
-    QuarterlyColumns.ASSETS,
-    QuarterlyColumns.STOCKHOLDER_EQUITY,
-    QuarterlyColumns.VOLUME,
-    QuarterlyColumns.EARNINGS
-]
-
-VS_MARKET_INDICES_COLUMNS = [
-    QuarterlyColumns.PRICE_AVG,
+COLUMNS_TO_COMPARE_TO_MARKET_INDICES = [
+    f"{Q_DELTA_PREFIX}{QuarterlyColumns.PRICE_AVG}",
+    f"{YOY_DELTA_PREFIX}{QuarterlyColumns.PRICE_AVG}",
     QuarterlyColumns.VOLATILITY,
 ]
 
@@ -269,10 +251,6 @@ FORMULAE = {
 
     QuarterlyColumns.WORKING_CAPITAL_RATIO:
         lambda row: (row[QuarterlyColumns.ASSETS] / row[QuarterlyColumns.LIABILITIES]),
-
-    QuarterlyColumns.AGE_OF_DATA:
-        lambda row: (datetime.now().date() - datetime.strptime(row[QuarterlyColumns.DATE],
-                                                               '%Y-%m-%d').date()).days / 90,
 
     QuarterlyColumns.AVG_PE_RATIO: lambda row: (
             row[QuarterlyColumns.PRICE_AVG] / row[QuarterlyColumns.EARNINGS]),
@@ -290,7 +268,10 @@ FORMULAE = {
             QuarterlyColumns.MARKET_CAP],
 
     QuarterlyColumns.PROFIT_MARGIN:
-        lambda row: (row[QuarterlyColumns.NET_INCOME] / row[QuarterlyColumns.REVENUE])
+        lambda row: (row[QuarterlyColumns.NET_INCOME] / row[QuarterlyColumns.REVENUE]),
+
+    QuarterlyColumns.RND_TO_EARNINGS:
+        lambda row: (row[QuarterlyColumns.RND] / row[QuarterlyColumns.EARNINGS])
 }
 
 INDEX_COLUMNS = [QuarterlyColumns.TICKER_SYMBOL,

@@ -5,8 +5,8 @@ from typing import Tuple, List, Dict, Callable
 from finance_ml.utils.constants import (
     QuarterlyColumns, StockPupColumns, STOCKPUP_TABLE_NAME, QUARTERLY_DB_FILE_PATH,
     YF_QUARTERLY_TABLE_NAME, INDEX_COLUMNS, MISSING_SECTOR, MISSING_INDUSTRY,
-    STOCK_GENERAL_INFO_CSV, FORMULAE, Q_DELTA_PREFIX, YOY_DELTA_PREFIX, DELTA_COLUMNS,
-    VS_MARKET_INDICES_COLUMNS, QUARTER, YEAR, VS_MKT_IDX, CATEGORICAL_COLUMNS
+    STOCK_GENERAL_INFO_CSV, FORMULAE, Q_DELTA_PREFIX, YOY_DELTA_PREFIX, NUMERIC_COLUMNS,
+    COLUMNS_TO_COMPARE_TO_MARKET_INDICES, QUARTER, YEAR, VS_MKT_IDX, CATEGORICAL_COLUMNS
 )
 from finance_ml.utils.quarterly_index import QuarterlyIndex
 
@@ -32,11 +32,12 @@ def preprocess_data(hyperparams: Hyperparams) -> pd.DataFrame:
 
     # Apply econ statistic formulae
     quarterly_df = apply_engineered_columns(quarterly_df,
-                                            columns=DELTA_COLUMNS,
+                                            columns=NUMERIC_COLUMNS,
                                             formulae=FORMULAE)
 
     market_index_df = apply_engineered_columns(market_index_df,
-                                               columns=[QuarterlyColumns.VOLATILITY],
+                                               columns=[QuarterlyColumns.VOLATILITY,
+                                                        QuarterlyColumns.PRICE_AVG],
                                                formulae={QuarterlyColumns.VOLATILITY: FORMULAE[
                                                    QuarterlyColumns.VOLATILITY]})
 
@@ -139,9 +140,9 @@ def preprocess_stockpup_data() -> pd.DataFrame:
         StockPupColumns.SHARES]
     df[QuarterlyColumns.MARKET_CAP] = df[StockPupColumns.SHARES_SPLIT_ADJUSTED] * df[
         StockPupColumns.PRICE]
-    df[
-        QuarterlyColumns.DEBT_SHORT] = 0  # I think short long term debt is figured into long term debt
-    #     df[QuarterlyColumns.EBIT] = ???  # TODO: Compute EBIT?
+    df[QuarterlyColumns.DEBT_SHORT] = 0  # I think short long term debt is in long term debt?
+    df[QuarterlyColumns.EBIT] = df[StockPupColumns.REVENUE] - df[
+        StockPupColumns.CAPITAL_EXPENDITURES]
 
     df.rename(columns={
         StockPupColumns.ASSETS: QuarterlyColumns.ASSETS,
@@ -158,9 +159,9 @@ def preprocess_stockpup_data() -> pd.DataFrame:
         StockPupColumns.EARNINGS: QuarterlyColumns.EARNINGS  # These aren't exactly the same
     }, inplace=True)
 
-    df[QuarterlyColumns.PRICE_AVG] = df[QuarterlyColumns.PRICE_AVG] * df[QuarterlyColumns.SPLIT]
-    df[QuarterlyColumns.PRICE_LO] = df[QuarterlyColumns.PRICE_LO] * df[QuarterlyColumns.SPLIT]
-    df[QuarterlyColumns.PRICE_HI] = df[QuarterlyColumns.PRICE_HI] * df[QuarterlyColumns.SPLIT]
+    df[QuarterlyColumns.PRICE_AVG] = df[QuarterlyColumns.PRICE_AVG]
+    df[QuarterlyColumns.PRICE_LO] = df[QuarterlyColumns.PRICE_LO]
+    df[QuarterlyColumns.PRICE_HI] = df[QuarterlyColumns.PRICE_HI]
 
     df[QuarterlyColumns.DEBT_LONG] = df[QuarterlyColumns.DEBT_LONG].apply(lambda row: int(row))
     df[QuarterlyColumns.NET_INCOME] = df[
@@ -234,7 +235,7 @@ def apply_engineered_columns(df: pd.DataFrame,
 def _compare_to_market_index(
         row: pd.Series, market_indices: List[str], market_index_df: pd.DataFrame):
     new_cols = []
-    for col in VS_MARKET_INDICES_COLUMNS:
+    for col in COLUMNS_TO_COMPARE_TO_MARKET_INDICES:
         for mkt_idx in market_indices:
             try:
                 mkt_idx_row = market_index_df.loc[mkt_idx, row.name[QUARTER], row.name[YEAR]]
@@ -254,10 +255,11 @@ def _compare_to_market_index(
     return pd.Series(new_cols)
 
 
-def compare_to_market_indices(
-        df: pd.DataFrame, market_index_df: pd.DataFrame, hyperparams: Hyperparams) -> pd.DataFrame:
+def compare_to_market_indices(df: pd.DataFrame,
+                              market_index_df: pd.DataFrame,
+                              hyperparams: Hyperparams) -> pd.DataFrame:
     vs_market_indices_col_names = [f'{col}{VS_MKT_IDX}{mkt_idx}'
-                                   for col in VS_MARKET_INDICES_COLUMNS
+                                   for col in COLUMNS_TO_COMPARE_TO_MARKET_INDICES
                                    for mkt_idx in hyperparams.MARKET_INDICES]
 
     df[vs_market_indices_col_names] = df.apply(_compare_to_market_index,
