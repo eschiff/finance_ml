@@ -1,4 +1,5 @@
 from lightgbm import LGBMRegressor
+from xgboost import XGBRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn import metrics
 import numpy as np
@@ -10,6 +11,32 @@ def train_and_evaluate(hyperparams: Hyperparams, X_train, y_train, X_test, y_tes
     if hyperparams.MODEL is LinearRegression:
         model = LinearRegression(fit_intercept=True,
                                  normalize=True).fit(X_train, y_train)
+
+        model.fit(X_train, y_train)
+
+        for i, col in enumerate(X_train.columns):
+            print(f'The coefficient for {col} is {model.coef_[i]}')
+        print(f'The intercept for our model is {model.intercept_}')
+
+    elif hyperparams.MODEL is XGBRegressor:
+        booster = 'gbtree'  # 'dart'  #'gblinear' #'gbtree'
+
+        model = XGBRegressor(seed=100,
+                             n_estimators=100,
+                             max_depth=3,
+                             learning_rate=0.1,
+                             min_child_weight=1,
+                             subsample=1,
+                             colsample_bytree=1,
+                             colsample_bylevel=1,
+                             gamma=0,
+                             booster=booster).fit(X_train, y_train)
+
+        if booster == 'gblinear':
+            for i, col in enumerate(X_train.columns):
+                print(f'The coefficient for {col} is {model.coef_[i]}')
+            print(f'The intercept for our model is {model.intercept_}')
+
     elif hyperparams.MODEL is LGBMRegressor:
         model = LGBMRegressor(boosting_type='gbdt',
                               num_leaves=hyperparams.NUM_LEAVES,
@@ -18,17 +45,18 @@ def train_and_evaluate(hyperparams: Hyperparams, X_train, y_train, X_test, y_tes
                               n_estimators=hyperparams.N_ESTIMATORS,
                               random_state=hyperparams.RANDOM_SEED)
 
-        model.fit(X=X_train, y=y_train)
+        model.fit(X_train, y_train,
+                  eval_set=[(X_test, y_test)],
+                  eval_metric='l1',
+                  early_stopping_rounds=hyperparams.EARLY_STOPPING_ROUNDS)
 
-        print(f"Feature Importances: {model._feature_importances}")
+        feature_importance_dict = {
+            feature: importance
+            for feature, importance
+            in sorted(zip(X_train.columns, model.feature_importances_),
+                      key=lambda tup: tup[1])}
 
-    for i, col in enumerate(X_train.columns):
-        print(f'The coefficient for {col} is {model.coef_[i]}')
-    print(f'The intercept for our model is {model.intercept_}')
-
-    score = model.score(X_test, y_test)
-    print('*' * 50)
-    print(f'The score of our model is {score}')
+        print(f"Feature Importances: {feature_importance_dict}")
 
     y_pred = model.predict(X_test)
 

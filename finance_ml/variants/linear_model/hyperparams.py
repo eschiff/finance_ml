@@ -12,12 +12,15 @@ class Hyperparams:
 
     MODEL = LGBMRegressor
 
+    N_STOCKS_TO_BUY = 10
+
     # Hyperparams for LGBM
     RANDOM_SEED = 32
     NUM_LEAVES = 31
     MAX_DEPTH = -1  # -1 is no max depth
     LEARNING_RATE = 0.1
     N_ESTIMATORS = 100
+    EARLY_STOPPING_ROUNDS = 5
 
     # What year to start training data at
     START_DATE = datetime(2000, 1, 1)
@@ -34,3 +37,4 @@ class Hyperparams:
     ONE_HOT_ENCODE = False
     NUMERIC_ENCODE_CATEGORIES = False
     SCALE_NUMERICS = False
+    TEST_SIZE = 0.2

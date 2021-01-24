@@ -2,7 +2,7 @@ import pathlib
 import os
 
 TICKER_SYMBOL, QUARTER, YEAR = 0, 1, 2
-TARGET_COLUMN = 'PredictedPrice'
+TARGET_COLUMN = 'PredictedAppreciation'
 
 UTILS_DIR = pathlib.Path(__file__).parent.absolute()
 
@@ -196,7 +196,6 @@ class QuarterlyColumns:
     PRICE_BOOK_RATIO = 'PriceToBookRatio'
     FCF = 'FreeCashFlow'
     PROFIT_MARGIN = 'ProfitMargin'
-    RND_TO_EARNINGS = 'RnDtoEarnings'
 
     @staticmethod
     def columns():
@@ -206,7 +205,8 @@ class QuarterlyColumns:
 
 CATEGORICAL_COLUMNS = [
     QuarterlyColumns.SECTOR,
-    QuarterlyColumns.INDUSTRY
+    QuarterlyColumns.INDUSTRY,
+    QuarterlyColumns.QUARTER
 ]
 
 NUMERIC_COLUMNS = [
@@ -268,10 +268,7 @@ FORMULAE = {
             QuarterlyColumns.MARKET_CAP],
 
     QuarterlyColumns.PROFIT_MARGIN:
-        lambda row: (row[QuarterlyColumns.NET_INCOME] / row[QuarterlyColumns.REVENUE]),
-
-    QuarterlyColumns.RND_TO_EARNINGS:
-        lambda row: (row[QuarterlyColumns.RND] / row[QuarterlyColumns.EARNINGS])
+        lambda row: (row[QuarterlyColumns.NET_INCOME] / row[QuarterlyColumns.REVENUE])
 }
 
 INDEX_COLUMNS = [QuarterlyColumns.TICKER_SYMBOL,

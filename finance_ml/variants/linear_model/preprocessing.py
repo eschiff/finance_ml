@@ -1,4 +1,6 @@
+import numpy as np
 import pandas as pd
+import json
 import sqlite3
 from typing import Tuple, List, Dict, Callable
 
@@ -44,6 +46,9 @@ def preprocess_data(hyperparams: Hyperparams) -> pd.DataFrame:
     market_index_df.sort_index(inplace=True)
 
     quarterly_df = compare_to_market_indices(quarterly_df, market_index_df, hyperparams)
+
+    quarterly_df[QuarterlyColumns.QUARTER] = quarterly_df.index.get_level_values(
+        QuarterlyColumns.QUARTER)
 
     for col in CATEGORICAL_COLUMNS:
         try:
@@ -105,6 +110,9 @@ def preprocess_quarterly_data(hyperparams: Hyperparams) -> Tuple[pd.DataFrame, p
                             QuarterlyColumns.QUARTER,
                             QuarterlyColumns.YEAR],
                            inplace=True)
+
+    quarterly_df[QuarterlyColumns.AVG_RECOMMENDATION_SCORE] = quarterly_df.apply(
+        get_avg_recommendation_score, axis=1)
 
     quarterly_df.sort_index(inplace=True)
 
@@ -268,3 +276,13 @@ def compare_to_market_indices(df: pd.DataFrame,
                                                market_index_df=market_index_df)
 
     return df
+
+
+def get_avg_recommendation_score(row: pd.Series):
+    if row[QuarterlyColumns.AVG_RECOMMENDATIONS] is None or str(
+            row[QuarterlyColumns.AVG_RECOMMENDATIONS]) == 'nan':
+        return pd.Series([0])
+
+    avg_recommendation = np.mean(
+        [float(v) for v in json.loads(row[QuarterlyColumns.AVG_RECOMMENDATIONS]).values()])
+    return pd.Series([avg_recommendation])
