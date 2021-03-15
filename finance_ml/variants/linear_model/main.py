@@ -64,8 +64,11 @@ async def main(hyperparams: Hyperparams):
     print(f"Predicting Top {len(n_largest)} stocks to purchase for"
           f" {hyperparams.N_QUARTERS_OUT_TO_PREDICT} Quarters in the future: \n{n_largest}")
 
-    model_name = f'linear-model-{datetime.now().date()}.pkl'
-    pickle.dump(metamodel, file=os.path.join(MODEL_DIR, model_name))
+    model_name = f'linear-model-{datetime.now().date()}.pickle'
+    model_path = os.path.join(MODEL_DIR, model_name)
+    print(f"Saving model to {model_path}")
+    with open(model_path, 'wb') as f:
+        pickle.dump(metamodel, file=f)
 
 
 def _get_target_col_prediction(row: pd.Series, df: pd.DataFrame, hyperparams: Hyperparams):
