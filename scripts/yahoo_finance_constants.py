@@ -7,7 +7,7 @@ INFO_KEYS = [
     yf.TickerInfoKeys.marketCap,
     yf.TickerInfoKeys.shortName,
     yf.TickerInfoKeys.category,
-    yf.TickerInfoKeys.industry,
+    yf.TickerInfoKeys.industry
 ]
 
 FINANCIAL_KEYS = [

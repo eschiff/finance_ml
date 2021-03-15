@@ -3,6 +3,7 @@ import yfinance_ez as yf
 from typing import Union, List
 import pandas as pd
 import json
+import asyncio
 
 from scripts.yahoo_finance_constants import RECOMMENDATION_GRADE_MAPPING
 from finance_ml.utils.constants import QuarterlyColumns, MONTH_TO_QUARTER
@@ -169,3 +170,28 @@ def build_split_data(ticker, quarter_end_dates) -> List[Union[float, None]]:
             split if quarter_start_date < split_date.date() < quarter_end_date else None)
 
     return split_data
+
+
+async def get_history_multiple_tickers(ticker_symbols: List[str],
+                                       period: yf.TimePeriods = yf.TimePeriods.Max,
+                                       interval: yf.TimeIntervals = yf.TimeIntervals.Daily,
+                                       start: Union[str, datetime, None] = None,
+                                       end: Union[str, datetime, None] = None,
+                                       prepost: bool = False,
+                                       auto_adjust: bool = True,
+                                       back_adjust: bool = False,
+                                       rounding: bool = True,
+                                       tz=None) -> List[yf.Ticker]:
+    tickers = [yf.Ticker(ticker_symbol) for ticker_symbol in ticker_symbols]
+    await asyncio.gather(
+        *[ticker.get_history_async(
+            period=period,
+            interval=interval,
+            start=start,
+            end=end,
+            prepost=prepost,
+            auto_adjust=auto_adjust,
+            back_adjust=back_adjust,
+            rounding=rounding,
+            tz=tz) for ticker in tickers])
+    return tickers

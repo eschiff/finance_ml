@@ -1,4 +1,10 @@
+import asyncio
+from datetime import datetime, timedelta
+import os
 import pandas as pd
+import pickle
+import yfinance_ez as yf
+from typing import List
 
 from finance_ml.utils.constants import (
     TARGET_COLUMN, QuarterlyColumns)
@@ -9,8 +15,11 @@ from finance_ml.variants.linear_model.preprocessing import preprocess_data
 from finance_ml.variants.linear_model.hyperparams import Hyperparams
 from finance_ml.variants.linear_model.metamodel import FinanceMLMetamodel
 
+MODEL_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), 'models')
 
-def main(hyperparams: Hyperparams):
+
+async def main(hyperparams: Hyperparams):
     df = preprocess_data(hyperparams)
 
     columns_to_drop = list(set(df.columns).difference({*FEATURE_COLUMNS}))
@@ -27,12 +36,36 @@ def main(hyperparams: Hyperparams):
 
     metamodel.fit(df)
 
-    y_pred = metamodel.predict(prediction_candidate_df)
+    y_pred, avg_price_used_for_prediction = metamodel.predict(prediction_candidate_df)
 
-    n_largest = y_pred.nlargest(hyperparams.N_STOCKS_TO_BUY, columns=[TARGET_COLUMN])
+    if hyperparams.ADJUST_FOR_CURRENT_PRICE:
+        ticker_symbols = y_pred.index.levels[0]
+
+        tickers_w_history = await get_history_multiple_tickers(
+            ticker_symbols,
+            start=datetime.now() - timedelta(days=5))
+
+        most_recent_prices = pd.DataFrame({
+            QuarterlyColumns.TICKER_SYMBOL: [t.ticker for t in tickers_w_history],
+            'CurrentPrice': [t.history.get('Close', [None])[-1] or
+                             avg_price_used_for_prediction[t.ticker] for t in tickers_w_history]
+        })
+        most_recent_prices = most_recent_prices.set_index([QuarterlyColumns.TICKER_SYMBOL])
+
+        appreciation_since_model_ran = (most_recent_prices['CurrentPrice']
+                                        - avg_price_used_for_prediction
+                                        ) / most_recent_prices['CurrentPrice']
+
+        y_pred[TARGET_COLUMN] -= appreciation_since_model_ran
+
+    n_largest = y_pred.astype('float').nlargest(
+        hyperparams.N_STOCKS_TO_BUY, columns=[TARGET_COLUMN])
 
     print(f"Predicting Top {len(n_largest)} stocks to purchase for"
           f" {hyperparams.N_QUARTERS_OUT_TO_PREDICT} Quarters in the future: \n{n_largest}")
+
+    model_name = f'linear-model-{datetime.now().date()}.pkl'
+    pickle.dump(metamodel, file=os.path.join(MODEL_DIR, model_name))
 
 
 def _get_target_col_prediction(row: pd.Series, df: pd.DataFrame, hyperparams: Hyperparams):
@@ -45,3 +78,13 @@ def _get_target_col_prediction(row: pd.Series, df: pd.DataFrame, hyperparams: Hy
             f'{hyperparams.PREDICTION_TARGET_PREFIX}{QuarterlyColumns.PRICE_AVG}']
     except:
         return None
+
+
+async def get_history_multiple_tickers(ticker_symbols: List[str],
+                                       **kwargs) -> List[yf.Ticker]:
+    tickers = [yf.Ticker(ticker_symbol) for ticker_symbol in ticker_symbols]
+
+    await asyncio.gather(
+        *[ticker.get_history_async(**kwargs) for ticker in tickers])
+
+    return tickers

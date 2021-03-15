@@ -2,9 +2,10 @@ import copy
 from datetime import datetime, timedelta, date
 import pandas as pd
 from sklearn.pipeline import Pipeline
+from typing import Tuple
 
 from finance_ml.utils.constants import (
-    TARGET_COLUMN, CATEGORICAL_COLUMNS, INDEX_COLUMNS)
+    TARGET_COLUMN, CATEGORICAL_COLUMNS, INDEX_COLUMNS, QuarterlyColumns)
 from finance_ml.utils.transforms import (
     NumericalScaler, CategoricalToDummy, QuarterFilter,
     OutlierExtractor, CategoricalToNumeric, Splitter)
@@ -36,9 +37,11 @@ class FinanceMLMetamodel:
                                                           y_test)
 
     def predict(self, df: pd.DataFrame, start_date: date = None,
-                end_date: date = None) -> pd.DataFrame:
+                end_date: date = None) -> Tuple[pd.DataFrame, pd.Series]:
         """
         Predict on data (filtering by dates if provided)
+
+        Returns tuple of (predictions made, avg price used for prediction)
         """
         assert (self.model is not None, "Model is not yet trained!")
 
@@ -47,18 +50,18 @@ class FinanceMLMetamodel:
         date_filter = QuarterFilter(start_date=start_date, end_date=end_date)
 
         data_pipeline = copy.deepcopy(self.data_pipeline)
-        data_pipeline.steps[0] = date_filter
+        data_pipeline.steps[0] = ('date_filter', date_filter)
 
         df_transformed = data_pipeline.transform(df)
 
         predicted = self.model.predict(df_transformed)
 
         # Grab random row from df and use its index columns
-        predict_df = df[FEATURE_COLUMNS[0]].reset_index()
+        predict_df = df_transformed[FEATURE_COLUMNS[0]].reset_index()
         predict_df[TARGET_COLUMN] = predicted
         predict_df = predict_df.set_index(INDEX_COLUMNS).drop(columns=[FEATURE_COLUMNS[0]])
 
-        return predict_df
+        return predict_df, df_transformed[QuarterlyColumns.PRICE_AVG]
 
     def _build_data_pipeline(self, hyperparams: Hyperparams, df: pd.DataFrame):
         if self.data_pipeline:

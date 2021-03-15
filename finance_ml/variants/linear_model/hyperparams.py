@@ -38,3 +38,7 @@ class Hyperparams:
     NUMERIC_ENCODE_CATEGORIES = False
     SCALE_NUMERICS = False
     TEST_SIZE = 0.2
+
+    # Whether to adjust predicted appreciation based on appreciation since model data
+    # being used for prediction was obtained
+    ADJUST_FOR_CURRENT_PRICE = True
