@@ -184,6 +184,7 @@ class QuarterlyColumns:
     VOLUME = 'Volume'
     EARNINGS = 'Earnings'
     STOCKHOLDER_EQUITY = 'TotalStockholderEquity'
+    DIVIDEND_PER_SHARE = 'DividendPerShare'
     VOLATILITY = 'Volatility'
     SECTOR = 'Sector'
     INDUSTRY = 'Industry'

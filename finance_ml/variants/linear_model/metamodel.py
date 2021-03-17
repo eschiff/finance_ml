@@ -22,10 +22,11 @@ class FinanceMLMetamodel:
         self.data_pipeline = None
         self.model = None
         self.result_dict = None
+        self.feature_importance_dict = None
 
     def fit(self, df: pd.DataFrame):
-        data_pipeline = self._build_data_pipeline(self.hyperparams, df)
-        X_transformed = data_pipeline.fit_transform(df)
+        self._build_data_pipeline(self.hyperparams, df)
+        X_transformed = self.data_pipeline.fit_transform(df)
 
         X_train, y_train, X_test, y_test = Splitter(
             test_size=self.hyperparams.TEST_SIZE).transform(X_transformed)
@@ -35,6 +36,12 @@ class FinanceMLMetamodel:
                                                           y_train,
                                                           X_test,
                                                           y_test)
+
+        self.feature_importance_dict = {
+            feature: importance
+            for feature, importance
+            in sorted(zip(X_train.columns, self.model.feature_importances_),
+                      key=lambda tup: tup[1])}
 
     def predict(self, df: pd.DataFrame, start_date: date = None,
                 end_date: date = None) -> Tuple[pd.DataFrame, pd.Series]:
@@ -65,7 +72,7 @@ class FinanceMLMetamodel:
 
     def _build_data_pipeline(self, hyperparams: Hyperparams, df: pd.DataFrame):
         if self.data_pipeline:
-            return self.data_pipeline
+            return
 
         non_categorical_columns = list(set(df.columns).difference({*CATEGORICAL_COLUMNS}))
 
@@ -89,5 +96,3 @@ class FinanceMLMetamodel:
 
         if hyperparams.SCALE_NUMERICS:
             self.data_pipeline.steps.append(('numeric_scaler', numerical_scaler))
-
-        return self.data_pipeline

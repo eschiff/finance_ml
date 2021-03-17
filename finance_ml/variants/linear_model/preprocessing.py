@@ -5,7 +5,7 @@ import sqlite3
 from typing import Tuple, List, Dict, Callable
 
 from finance_ml.utils.constants import (
-    QuarterlyColumns, StockPupColumns, STOCKPUP_TABLE_NAME, QUARTERLY_DB_FILE_PATH,
+    QuarterlyColumns as QC, StockPupColumns as SPC, STOCKPUP_TABLE_NAME, QUARTERLY_DB_FILE_PATH,
     YF_QUARTERLY_TABLE_NAME, INDEX_COLUMNS, MISSING_SECTOR, MISSING_INDUSTRY,
     STOCK_GENERAL_INFO_CSV, FORMULAE, Q_DELTA_PREFIX, YOY_DELTA_PREFIX, NUMERIC_COLUMNS,
     COLUMNS_TO_COMPARE_TO_MARKET_INDICES, QUARTER, YEAR, VS_MKT_IDX, CATEGORICAL_COLUMNS
@@ -27,10 +27,10 @@ def preprocess_data(hyperparams: Hyperparams) -> pd.DataFrame:
     quarterly_df.sort_index(inplace=True)
 
     # Add general info
-    quarterly_df = quarterly_df.join(stock_info_df, on=[QuarterlyColumns.TICKER_SYMBOL])
-    quarterly_df[QuarterlyColumns.SECTOR].fillna(MISSING_SECTOR, inplace=True)
-    quarterly_df[QuarterlyColumns.INDUSTRY].fillna(MISSING_INDUSTRY, inplace=True)
-    quarterly_df[QuarterlyColumns.DEBT_SHORT].fillna(0, inplace=True)
+    quarterly_df = quarterly_df.join(stock_info_df, on=[QC.TICKER_SYMBOL])
+    quarterly_df[QC.SECTOR].fillna(MISSING_SECTOR, inplace=True)
+    quarterly_df[QC.INDUSTRY].fillna(MISSING_INDUSTRY, inplace=True)
+    quarterly_df[QC.DEBT_SHORT].fillna(0, inplace=True)
 
     # Apply econ statistic formulae
     quarterly_df = apply_engineered_columns(quarterly_df,
@@ -38,17 +38,20 @@ def preprocess_data(hyperparams: Hyperparams) -> pd.DataFrame:
                                             formulae=FORMULAE)
 
     market_index_df = apply_engineered_columns(market_index_df,
-                                               columns=[QuarterlyColumns.VOLATILITY,
-                                                        QuarterlyColumns.PRICE_AVG],
-                                               formulae={QuarterlyColumns.VOLATILITY: FORMULAE[
-                                                   QuarterlyColumns.VOLATILITY]})
+                                               columns=[QC.VOLATILITY,
+                                                        QC.PRICE_AVG],
+                                               formulae={QC.VOLATILITY: FORMULAE[
+                                                   QC.VOLATILITY]})
 
     market_index_df.sort_index(inplace=True)
 
     quarterly_df = compare_to_market_indices(quarterly_df, market_index_df, hyperparams)
 
-    quarterly_df[QuarterlyColumns.QUARTER] = quarterly_df.index.get_level_values(
-        QuarterlyColumns.QUARTER)
+    quarterly_df[QC.QUARTER] = quarterly_df.index.get_level_values(
+        QC.QUARTER)
+
+    quarterly_df[QC.DIVIDEND_PER_SHARE] = quarterly_df[
+        QC.DIVIDEND_PER_SHARE].fillna(0)
 
     for col in CATEGORICAL_COLUMNS:
         try:
@@ -63,12 +66,12 @@ def read_stock_info() -> pd.DataFrame:
     stock_info_df = pd.read_csv(STOCK_GENERAL_INFO_CSV)[['tickerSymbol', 'sector', 'industry']]
 
     stock_info_df.rename(columns={
-        'tickerSymbol': QuarterlyColumns.TICKER_SYMBOL,
-        'sector': QuarterlyColumns.SECTOR,
-        'industry': QuarterlyColumns.INDUSTRY
+        'tickerSymbol': QC.TICKER_SYMBOL,
+        'sector': QC.SECTOR,
+        'industry': QC.INDUSTRY
     }, inplace=True)
 
-    stock_info_df.set_index([QuarterlyColumns.TICKER_SYMBOL], inplace=True)
+    stock_info_df.set_index([QC.TICKER_SYMBOL], inplace=True)
 
     return stock_info_df
 
@@ -81,37 +84,37 @@ def preprocess_quarterly_data(hyperparams: Hyperparams) -> Tuple[pd.DataFrame, p
     # This needs to be above the filters below otherwise we'll drop quarterly data!
     # (indices have no revenue)
     market_index_df = quarterly_df[
-        quarterly_df[QuarterlyColumns.TICKER_SYMBOL].isin(hyperparams.MARKET_INDICES)]
+        quarterly_df[QC.TICKER_SYMBOL].isin(hyperparams.MARKET_INDICES)]
 
-    market_index_df.dropna(subset=[QuarterlyColumns.DATE,
-                                   QuarterlyColumns.PRICE_AVG,
-                                   QuarterlyColumns.PRICE_HI,
-                                   QuarterlyColumns.PRICE_LO,
+    market_index_df.dropna(subset=[QC.DATE,
+                                   QC.PRICE_AVG,
+                                   QC.PRICE_HI,
+                                   QC.PRICE_LO,
                                    ],
                            inplace=True)
     market_index_df.set_index(INDEX_COLUMNS, inplace=True)
 
-    quarterly_df.dropna(subset=[QuarterlyColumns.DATE,
-                                QuarterlyColumns.REVENUE,
-                                QuarterlyColumns.PRICE_AVG,
-                                QuarterlyColumns.PRICE_HI,
-                                QuarterlyColumns.PRICE_LO,
-                                QuarterlyColumns.EARNINGS,
-                                QuarterlyColumns.MARKET_CAP],
+    quarterly_df.dropna(subset=[QC.DATE,
+                                QC.REVENUE,
+                                QC.PRICE_AVG,
+                                QC.PRICE_HI,
+                                QC.PRICE_LO,
+                                QC.EARNINGS,
+                                QC.MARKET_CAP],
                         inplace=True)
 
-    quarterly_df = quarterly_df[((quarterly_df[QuarterlyColumns.REVENUE] != 0) &
-                                 (quarterly_df[QuarterlyColumns.EARNINGS] != 0) &
-                                 (quarterly_df[QuarterlyColumns.MARKET_CAP] != 0) &
-                                 (~quarterly_df[QuarterlyColumns.TICKER_SYMBOL].isin(
+    quarterly_df = quarterly_df[((quarterly_df[QC.REVENUE] != 0) &
+                                 (quarterly_df[QC.EARNINGS] != 0) &
+                                 (quarterly_df[QC.MARKET_CAP] != 0) &
+                                 (~quarterly_df[QC.TICKER_SYMBOL].isin(
                                      hyperparams.MARKET_INDICES)))]
 
-    quarterly_df.set_index([QuarterlyColumns.TICKER_SYMBOL,
-                            QuarterlyColumns.QUARTER,
-                            QuarterlyColumns.YEAR],
+    quarterly_df.set_index([QC.TICKER_SYMBOL,
+                            QC.QUARTER,
+                            QC.YEAR],
                            inplace=True)
 
-    quarterly_df[QuarterlyColumns.AVG_RECOMMENDATION_SCORE] = quarterly_df.apply(
+    quarterly_df[QC.AVG_RECOMMENDATION_SCORE] = quarterly_df.apply(
         get_avg_recommendation_score, axis=1)
 
     quarterly_df.sort_index(inplace=True)
@@ -124,59 +127,59 @@ def preprocess_stockpup_data() -> pd.DataFrame:
     df = pd.read_sql_query(f'SELECT * FROM {STOCKPUP_TABLE_NAME}', db_conn)
     db_conn.close()
 
-    df.dropna(subset=[StockPupColumns.SHARES,
-                      StockPupColumns.SHARES_SPLIT_ADJUSTED,
-                      StockPupColumns.FREE_CASH_FLOW_PER_SHARE,
-                      StockPupColumns.EARNINGS,
-                      StockPupColumns.SHAREHOLDER_EQUITY,
-                      StockPupColumns.LIABILITIES,
-                      StockPupColumns.PRICE],
+    df.dropna(subset=[SPC.SHARES,
+                      SPC.SHARES_SPLIT_ADJUSTED,
+                      SPC.FREE_CASH_FLOW_PER_SHARE,
+                      SPC.EARNINGS,
+                      SPC.SHAREHOLDER_EQUITY,
+                      SPC.LIABILITIES,
+                      SPC.PRICE],
               inplace=True)
-    df = df[((df[StockPupColumns.REVENUE] != 0) &
-             (df[StockPupColumns.EARNINGS] != 0))]
+    df = df[((df[SPC.REVENUE] != 0) &
+             (df[SPC.EARNINGS] != 0))]
 
-    df[StockPupColumns.QUARTER_END] = pd.to_datetime(df[StockPupColumns.QUARTER_END])
+    df[SPC.QUARTER_END] = pd.to_datetime(df[SPC.QUARTER_END])
 
-    df[QuarterlyColumns.QUARTER] = df[StockPupColumns.QUARTER_END].apply(
+    df[QC.QUARTER] = df[SPC.QUARTER_END].apply(
         lambda r: QuarterlyIndex.from_date(r).quarter)
-    df[QuarterlyColumns.YEAR] = df[StockPupColumns.QUARTER_END].apply(
+    df[QC.YEAR] = df[SPC.QUARTER_END].apply(
         lambda r: QuarterlyIndex.from_date(r).year)
-    df[QuarterlyColumns.DIVIDENDS] = df[StockPupColumns.DIVIDEND_PER_SHARE] * df[
-        StockPupColumns.SHARES]
-    df[QuarterlyColumns.DATE] = df[StockPupColumns.QUARTER_END].apply(lambda r: str(r.date()))
-    df[QuarterlyColumns.OPERATING_INCOME] = df[StockPupColumns.FREE_CASH_FLOW_PER_SHARE] * df[
-        StockPupColumns.SHARES]
-    df[QuarterlyColumns.MARKET_CAP] = df[StockPupColumns.SHARES_SPLIT_ADJUSTED] * df[
-        StockPupColumns.PRICE]
-    df[QuarterlyColumns.DEBT_SHORT] = 0  # I think short long term debt is in long term debt?
-    df[QuarterlyColumns.EBIT] = df[StockPupColumns.REVENUE] - df[
-        StockPupColumns.CAPITAL_EXPENDITURES]
+    df[QC.DIVIDENDS] = df[SPC.DIVIDEND_PER_SHARE] * df[
+        SPC.SHARES]
+    df[QC.DATE] = df[SPC.QUARTER_END].apply(lambda r: str(r.date()))
+    df[QC.OPERATING_INCOME] = df[SPC.FREE_CASH_FLOW_PER_SHARE] * df[
+        SPC.SHARES]
+    df[QC.MARKET_CAP] = df[SPC.SHARES_SPLIT_ADJUSTED] * df[
+        SPC.PRICE]
+    df[QC.DEBT_SHORT] = 0  # I think short long term debt is in long term debt?
+    df[QC.EBIT] = df[SPC.REVENUE] - df[
+        SPC.CAPITAL_EXPENDITURES]
 
     df.rename(columns={
-        StockPupColumns.ASSETS: QuarterlyColumns.ASSETS,
-        StockPupColumns.REVENUE: QuarterlyColumns.REVENUE,
-        StockPupColumns.LIABILITIES: QuarterlyColumns.LIABILITIES,
-        StockPupColumns.LONG_TERM_DEBT: QuarterlyColumns.DEBT_LONG,
-        StockPupColumns.SHAREHOLDER_EQUITY: QuarterlyColumns.STOCKHOLDER_EQUITY,
-        StockPupColumns.CASH_AT_END_OF_PERIOD: QuarterlyColumns.CASH,
-        StockPupColumns.PRICE: QuarterlyColumns.PRICE_AVG,
-        StockPupColumns.PRICE_LOW: QuarterlyColumns.PRICE_LO,
-        StockPupColumns.PRICE_HIGH: QuarterlyColumns.PRICE_HI,
-        StockPupColumns.SPLIT_FACTOR: QuarterlyColumns.SPLIT,
-        StockPupColumns.SHARES_SPLIT_ADJUSTED: QuarterlyColumns.COMMON_STOCK,
-        StockPupColumns.EARNINGS: QuarterlyColumns.EARNINGS  # These aren't exactly the same
+        SPC.ASSETS: QC.ASSETS,
+        SPC.REVENUE: QC.REVENUE,
+        SPC.LIABILITIES: QC.LIABILITIES,
+        SPC.LONG_TERM_DEBT: QC.DEBT_LONG,
+        SPC.SHAREHOLDER_EQUITY: QC.STOCKHOLDER_EQUITY,
+        SPC.CASH_AT_END_OF_PERIOD: QC.CASH,
+        SPC.PRICE: QC.PRICE_AVG,
+        SPC.PRICE_LOW: QC.PRICE_LO,
+        SPC.PRICE_HIGH: QC.PRICE_HI,
+        SPC.SPLIT_FACTOR: QC.SPLIT,
+        SPC.SHARES_SPLIT_ADJUSTED: QC.COMMON_STOCK,
+        SPC.EARNINGS: QC.EARNINGS  # These aren't exactly the same
     }, inplace=True)
 
-    df[QuarterlyColumns.PRICE_AVG] = df[QuarterlyColumns.PRICE_AVG]
-    df[QuarterlyColumns.PRICE_LO] = df[QuarterlyColumns.PRICE_LO]
-    df[QuarterlyColumns.PRICE_HI] = df[QuarterlyColumns.PRICE_HI]
+    df[QC.PRICE_AVG] = df[QC.PRICE_AVG]
+    df[QC.PRICE_LO] = df[QC.PRICE_LO]
+    df[QC.PRICE_HI] = df[QC.PRICE_HI]
 
-    df[QuarterlyColumns.DEBT_LONG] = df[QuarterlyColumns.DEBT_LONG].apply(lambda row: int(row))
-    df[QuarterlyColumns.NET_INCOME] = df[
-        QuarterlyColumns.EARNINGS]  # These aren't exactly the same...
+    df[QC.DEBT_LONG] = df[QC.DEBT_LONG].apply(lambda row: int(row))
+    df[QC.NET_INCOME] = df[
+        QC.EARNINGS]  # These aren't exactly the same...
 
-    # Filter only to columns in QuarterlyColumns
-    df = df[[col for col in df.columns if col in QuarterlyColumns.columns()]]
+    # Filter only to columns in QC
+    df = df[[col for col in df.columns if col in QC.columns()]]
 
     df.set_index(INDEX_COLUMNS, inplace=True)
     df.sort_index(inplace=True)
@@ -279,10 +282,10 @@ def compare_to_market_indices(df: pd.DataFrame,
 
 
 def get_avg_recommendation_score(row: pd.Series):
-    if row[QuarterlyColumns.AVG_RECOMMENDATIONS] is None or str(
-            row[QuarterlyColumns.AVG_RECOMMENDATIONS]) == 'nan':
+    if row[QC.AVG_RECOMMENDATIONS] is None or str(
+            row[QC.AVG_RECOMMENDATIONS]) == 'nan':
         return pd.Series([0])
 
     avg_recommendation = np.mean(
-        [float(v) for v in json.loads(row[QuarterlyColumns.AVG_RECOMMENDATIONS]).values()])
+        [float(v) for v in json.loads(row[QC.AVG_RECOMMENDATIONS]).values()])
     return pd.Series([avg_recommendation])

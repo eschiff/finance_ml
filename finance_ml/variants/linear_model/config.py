@@ -16,4 +16,5 @@ FEATURE_COLUMNS = [f"{prefix}{col_name}"
                   list(FORMULAE.keys()) + \
                   VS_MARKET_INDICES_COLUMNS + \
                   CATEGORICAL_COLUMNS + \
-                  NUMERIC_COLUMNS
+                  NUMERIC_COLUMNS + \
+                  [QuarterlyColumns.DIVIDEND_PER_SHARE]

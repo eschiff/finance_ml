@@ -27,6 +27,8 @@ class Hyperparams:
     # end date to use for training data. None if today
     END_DATE = None
 
+    INCLUDE_DIVIDENDS_IN_PREDICTED_PRICE = True
+
     # How many quarters out to predict market price
     N_QUARTERS_OUT_TO_PREDICT = 4
 

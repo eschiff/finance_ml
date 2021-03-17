@@ -7,7 +7,7 @@ import re
 from functools import reduce
 
 from finance_ml.utils.constants import (
-    QUARTERLY_DB_FILE_PATH, QuarterlyColumns, StockPupColumns,
+    QUARTERLY_DB_FILE_PATH, QuarterlyColumns as QC, StockPupColumns as SPC,
     YF_QUARTERLY_TABLE_NAME, MARKET_INDICES, STOCKPUP_TABLE_NAME)
 from scripts.yahoo_finance_constants import (
     INFO_KEYS, FINANCIAL_KEYS, BALANCE_SHEET_KEYS, CASHFLOW_KEYS)
@@ -51,15 +51,28 @@ def get_quarterly_price_history(ticker, start):
                                                           start=start,
                                                           time_period=13 * 7)
 
-    qi_data = price_history_df[QuarterlyColumns.DATE].apply(lambda d: QuarterlyIndex.from_date(d))
+    qi_data = price_history_df[QC.DATE].apply(lambda d: QuarterlyIndex.from_date(d))
 
-    price_history_df[QuarterlyColumns.YEAR] = qi_data.apply(lambda qi: qi.year)
-    price_history_df[QuarterlyColumns.QUARTER] = qi_data.apply(lambda qi: qi.quarter)
+    price_history_df[QC.YEAR] = qi_data.apply(lambda qi: qi.year)
+    price_history_df[QC.QUARTER] = qi_data.apply(lambda qi: qi.quarter)
 
-    price_history_df[QuarterlyColumns.SPLIT] = build_split_data(ticker, price_history_df[
-        QuarterlyColumns.DATE])
+    price_history_df[QC.SPLIT] = build_split_data(ticker, price_history_df[
+        QC.DATE])
 
     return price_history_df
+
+
+def _get_dividends(ticker: yf.Ticker):
+    try:
+        dividends = ticker.dividends.copy()
+    except KeyError:
+        return
+    dividends = dividends.loc[
+        dividends.index.to_pydatetime() > datetime.now() - timedelta(days=550)]
+    df = pd.DataFrame(dividends)
+    df.index = _check_quarter_data(df.index)
+    df.rename({'Dividends': QC.DIVIDEND_PER_SHARE}, axis=1, inplace=True)
+    return df
 
 
 def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
@@ -80,10 +93,13 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
     if q_data.empty:
         q_data = pd.DataFrame({col: [None] * len(q_indexes) for col in q_data.columns})
     q_data.index = q_indexes
-    q_data[QuarterlyColumns.TICKER_SYMBOL] = [ticker.ticker] * len(quarter_end_dates)
-    q_data[QuarterlyColumns.YEAR] = q_data.index.to_series().apply(lambda i: int(i[-4:]))
-    q_data[QuarterlyColumns.QUARTER] = q_data.index.to_series().apply(lambda i: int(i[0]))
-    q_data[QuarterlyColumns.SPLIT] = build_split_data(ticker, quarter_end_dates)
+    q_data[QC.TICKER_SYMBOL] = [ticker.ticker] * len(quarter_end_dates)
+    q_data[QC.YEAR] = q_data.index.to_series().apply(lambda i: int(i[-4:]))
+    q_data[QC.QUARTER] = q_data.index.to_series().apply(lambda i: int(i[0]))
+    q_data[QC.SPLIT] = build_split_data(ticker, quarter_end_dates)
+
+    dividends = _get_dividends(ticker)
+    q_data = q_data.join(dividends)
 
     info = {feature: ticker.info.get(feature, '') for feature in INFO_KEYS}
 
@@ -107,16 +123,16 @@ def get_quarterly_data(ticker: yf.Ticker) -> Tuple[Dict, pd.DataFrame]:
 
         if avg_data.empty:
             continue
-        avg_data['Quarter'] = _check_quarter_data(avg_data[QuarterlyColumns.DATE])
+        avg_data['Quarter'] = _check_quarter_data(avg_data[QC.DATE])
 
-        avg_data.drop(columns=[QuarterlyColumns.DATE, QuarterlyColumns.TICKER_SYMBOL], inplace=True)
+        avg_data.drop(columns=[QC.DATE, QC.TICKER_SYMBOL], inplace=True)
         avg_data.set_index(['Quarter'], inplace=True)
         q_data = q_data.join(avg_data)
 
     q_data.reset_index(drop=True, inplace=True)
 
-    q_data[QuarterlyColumns.DATE] = quarter_end_dates
-    q_data[QuarterlyColumns.MARKET_CAP] = info.get('marketCap', 'NULL')
+    q_data[QC.DATE] = quarter_end_dates
+    q_data[QC.MARKET_CAP] = info.get('marketCap', 'NULL')
 
     # Remove duplicate columns
     q_data = q_data.loc[:, ~q_data.columns.duplicated()]
@@ -164,28 +180,28 @@ def update_quarterly_database(ticker_symbols=None):
 
             for i, row in ticker_df.iterrows():
                 resp = db_conn.execute(f"""SELECT * FROM {YF_QUARTERLY_TABLE_NAME}
-WHERE {QuarterlyColumns.TICKER_SYMBOL}='{row[QuarterlyColumns.TICKER_SYMBOL]}' AND
-      {QuarterlyColumns.QUARTER}={row[QuarterlyColumns.QUARTER]} AND
-      {QuarterlyColumns.YEAR}={row[QuarterlyColumns.YEAR]}""")
+WHERE {QC.TICKER_SYMBOL}='{row[QC.TICKER_SYMBOL]}' AND
+      {QC.QUARTER}={row[QC.QUARTER]} AND
+      {QC.YEAR}={row[QC.YEAR]}""")
 
                 if resp.fetchone():
-                    dates_to_drop.append(row[QuarterlyColumns.DATE])
+                    dates_to_drop.append(row[QC.DATE])
 
             print(f'Dates already exist in table: {dates_to_drop}')
             ticker_df = ticker_df[
-                ticker_df.apply(lambda r: r[QuarterlyColumns.DATE] not in dates_to_drop, axis=1)]
+                ticker_df.apply(lambda r: r[QC.DATE] not in dates_to_drop, axis=1)]
 
             # Check for splits in ticker_df (rows don't yet exist in table)
-            if not ticker_df[QuarterlyColumns.SPLIT].isnull().all():
+            if not ticker_df[QC.SPLIT].isnull().all():
                 split_factor = reduce(lambda x, y: x * y,
-                                      ticker_df[QuarterlyColumns.SPLIT].fillna(1.0))
+                                      ticker_df[QC.SPLIT].fillna(1.0))
 
                 # Adjust all pre-existing split data to make it easy to compare prices!
                 # (also since all new yf data added will be in split adjusted terms already)
                 _apply_split_to_yf_table(ticker_symbol=ticker_symbol,
                                          split_factor=split_factor,
-                                         year=ticker_df[QuarterlyColumns.YEAR][0],
-                                         quarter=ticker_df[QuarterlyColumns.QUARTER][0],
+                                         year=ticker_df[QC.YEAR][0],
+                                         quarter=ticker_df[QC.QUARTER][0],
                                          db_conn=db_conn)
 
                 _apply_split_to_stockpup_table(ticker_symbol=ticker_symbol,
@@ -212,16 +228,17 @@ def _apply_split_to_yf_table(ticker_symbol, split_factor, year, quarter, db_conn
      Adjusts all values in the Yahoo Finance Table by the split factor
     """
     command = f'''UPDATE {YF_QUARTERLY_TABLE_NAME}  
-SET "{QuarterlyColumns.PRICE_AVG}" = "{QuarterlyColumns.PRICE_AVG}" / {split_factor},
-    "{QuarterlyColumns.PRICE_HI}" = "{QuarterlyColumns.PRICE_HI}" / {split_factor},
-    "{QuarterlyColumns.PRICE_LO}" = "{QuarterlyColumns.PRICE_LO}" / {split_factor},
-    "{QuarterlyColumns.PRICE_AT_END_OF_QUARTER}" = "{QuarterlyColumns.PRICE_AT_END_OF_QUARTER}" / {split_factor},
-    "{QuarterlyColumns.STOCK_ISSUED}" = "{QuarterlyColumns.STOCK_ISSUED}" * {split_factor},
-    "{QuarterlyColumns.STOCK_REPURCHASED}" = "{QuarterlyColumns.STOCK_REPURCHASED}" * {split_factor},
-    "{QuarterlyColumns.COMMON_STOCK}" = "{QuarterlyColumns.COMMON_STOCK}" * {split_factor}
-WHERE ("{QuarterlyColumns.TICKER_SYMBOL}" = "{ticker_symbol}" AND (
-    "{QuarterlyColumns.YEAR}" < {year} OR (
-    "{QuarterlyColumns.YEAR}" = {year} AND "{QuarterlyColumns.QUARTER}" < {quarter})))'''
+SET "{QC.PRICE_AVG}" = "{QC.PRICE_AVG}" / {split_factor},
+    "{QC.PRICE_HI}" = "{QC.PRICE_HI}" / {split_factor},
+    "{QC.PRICE_LO}" = "{QC.PRICE_LO}" / {split_factor},
+    "{QC.PRICE_AT_END_OF_QUARTER}" = "{QC.PRICE_AT_END_OF_QUARTER}" / {split_factor},
+    "{QC.DIVIDEND_PER_SHARE}" = "{QC.DIVIDEND_PER_SHARE}" / {split_factor},
+    "{QC.STOCK_ISSUED}" = "{QC.STOCK_ISSUED}" * {split_factor},
+    "{QC.STOCK_REPURCHASED}" = "{QC.STOCK_REPURCHASED}" * {split_factor},
+    "{QC.COMMON_STOCK}" = "{QC.COMMON_STOCK}" * {split_factor}
+WHERE ("{QC.TICKER_SYMBOL}" = "{ticker_symbol}" AND (
+    "{QC.YEAR}" < {year} OR (
+    "{QC.YEAR}" = {year} AND "{QC.QUARTER}" < {quarter})))'''
 
     db_conn.execute(command)
 
@@ -231,14 +248,61 @@ def _apply_split_to_stockpup_table(ticker_symbol, split_factor, db_conn):
      Adjusts all values in the Stockpup Table by the split factor
     """
     command = f'''UPDATE {STOCKPUP_TABLE_NAME}  
-SET "{StockPupColumns.PRICE}" = "{StockPupColumns.PRICE}"/{split_factor},
-    "{StockPupColumns.PRICE_HIGH}" = "{StockPupColumns.PRICE_HIGH}" / {split_factor},
-    "{StockPupColumns.PRICE_LOW}" = "{StockPupColumns.PRICE_LOW}" / {split_factor},
-    "{StockPupColumns.SHARES_SPLIT_ADJUSTED}" = "{StockPupColumns.SHARES_SPLIT_ADJUSTED}" * {split_factor},
-    "{StockPupColumns.SPLIT_FACTOR}" = "{StockPupColumns.SPLIT_FACTOR}" * {split_factor}
-WHERE "{QuarterlyColumns.TICKER_SYMBOL}" = "{ticker_symbol}"'''
+SET "{SPC.PRICE}" = "{SPC.PRICE}"/{split_factor},
+    "{SPC.PRICE_HIGH}" = "{SPC.PRICE_HIGH}" / {split_factor},
+    "{SPC.PRICE_LOW}" = "{SPC.PRICE_LOW}" / {split_factor},
+    "{SPC.DIVIDEND_PER_SHARE}" = "{SPC.DIVIDEND_PER_SHARE}" / {split_factor},
+    "{SPC.SHARES_SPLIT_ADJUSTED}" = "{SPC.SHARES_SPLIT_ADJUSTED}" * {split_factor},
+    "{SPC.SPLIT_FACTOR}" = "{SPC.SPLIT_FACTOR}" * {split_factor}
+WHERE "{QC.TICKER_SYMBOL}" = "{ticker_symbol}"'''
 
     db_conn.execute(command)
+
+
+def add_dividends(ticker_symbols=None):
+    try:
+        db_conn = sqlite3.connect(QUARTERLY_DB_FILE_PATH)
+
+        if ticker_symbols is None:
+            ticker_symbols = get_ticker_symbols()
+
+        for ticker_symbol in ticker_symbols:
+            print(f'Adding: {ticker_symbol}')
+            ticker = yf.Ticker(ticker_symbol)
+
+            if ticker_symbol in MARKET_INDICES:
+                continue
+            else:
+                try:
+                    dividends = ticker.dividends
+                except KeyError:
+                    continue
+
+                # filter out rows before 1/1/2019
+                dividends = dividends.loc[dividends.index.to_pydatetime() > datetime(2019, 1, 1)]
+
+                df = pd.DataFrame(dividends)
+                df['xQyyyy'] = _check_quarter_data(df.index)
+                df[QC.YEAR] = df['xQyyyy'].apply(lambda i: int(i[2:]))
+                df[QC.QUARTER] = df['xQyyyy'].apply(lambda i: int(i[0]))
+                df[QC.TICKER_SYMBOL] = ticker.ticker
+                df.drop(columns=['xQyyyy'], inplace=True)
+                df.reset_index(drop=True, inplace=True)
+                df.rename({'Dividends': QC.DIVIDEND_PER_SHARE}, axis=1, inplace=True)
+
+                for i, row in df.iterrows():
+                    db_conn.execute(
+                        f"""UPDATE {YF_QUARTERLY_TABLE_NAME} 
+SET {QC.DIVIDEND_PER_SHARE}={row[QC.DIVIDEND_PER_SHARE]}
+WHERE {QC.TICKER_SYMBOL}='{row[QC.TICKER_SYMBOL]}' AND
+      {QC.QUARTER}={row[QC.QUARTER]} AND
+      {QC.YEAR}={row[QC.YEAR]}""")
+
+        db_conn.commit()
+
+    finally:
+        if db_conn:
+            db_conn.close()
 
 
 if __name__ == "__main__":
