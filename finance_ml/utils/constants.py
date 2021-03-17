@@ -89,7 +89,7 @@ class StockPupColumns:
     # Diluted earnings per share.
     EPS_DILUTED = 'EPS_diluted'
     # Common stock dividends paid during a quarter per share, including all regular and special
-    # dividends and distributions to common shareholders.
+    # dividends and distributions to common shareholders. Already adjusted for splits.
     DIVIDEND_PER_SHARE = 'DividendPerShare'
     # Cash produced by operating activities during a given quarter, including Continuing and
     # Discontinued operations.
