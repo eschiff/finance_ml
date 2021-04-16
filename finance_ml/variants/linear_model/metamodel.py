@@ -1,14 +1,16 @@
+import asyncio
 import copy
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 import pandas as pd
 from sklearn.pipeline import Pipeline
-from typing import Tuple
+from typing import List
+import yfinance_ez as yf
 
 from finance_ml.utils.constants import (
-    TARGET_COLUMN, CATEGORICAL_COLUMNS, INDEX_COLUMNS, QuarterlyColumns)
+    TARGET_COLUMN, CATEGORICAL_COLUMNS, INDEX_COLUMNS, QuarterlyColumns as QC)
 from finance_ml.utils.transforms import (
     NumericalScaler, CategoricalToDummy, QuarterFilter,
-    OutlierExtractor, CategoricalToNumeric, Splitter)
+    OutlierExtractor, CategoricalToNumeric, Splitter, DummyTransform)
 
 from finance_ml.variants.linear_model.config import FEATURE_COLUMNS
 from finance_ml.variants.linear_model.hyperparams import Hyperparams
@@ -43,22 +45,19 @@ class FinanceMLMetamodel:
             in sorted(zip(X_train.columns, self.model.feature_importances_),
                       key=lambda tup: tup[1])}
 
-    def predict(self, df: pd.DataFrame, start_date: date = None,
-                end_date: date = None) -> Tuple[pd.DataFrame, pd.Series]:
+    async def predict(self,
+                      df: pd.DataFrame,
+                      adjust_for_current_price: bool = True) -> pd.DataFrame:
         """
         Predict on data (filtering by dates if provided)
 
-        Returns tuple of (predictions made, avg price used for prediction)
+        Returns dataframe of predictions
         """
         assert (self.model is not None, "Model is not yet trained!")
 
-        start_date = start_date or datetime.now().date() - timedelta(days=90)
-        end_date = end_date or datetime.now().date()
-        date_filter = QuarterFilter(start_date=start_date, end_date=end_date)
-
+        # Run data pipeline on df, but remove date filter
         data_pipeline = copy.deepcopy(self.data_pipeline)
-        data_pipeline.steps[0] = ('date_filter', date_filter)
-
+        data_pipeline.steps[0] = ('date_filter', DummyTransform())
         df_transformed = data_pipeline.transform(df)
 
         predicted = self.model.predict(df_transformed)
@@ -68,7 +67,35 @@ class FinanceMLMetamodel:
         predict_df[TARGET_COLUMN] = predicted
         predict_df = predict_df.set_index(INDEX_COLUMNS).drop(columns=[FEATURE_COLUMNS[0]])
 
-        return predict_df, df_transformed[QuarterlyColumns.PRICE_AVG]
+        if adjust_for_current_price:
+            ticker_symbols = predict_df.index.levels[0]
+            avg_price_used_for_prediction = df_transformed[QC.PRICE_AVG]
+
+            tickers_w_history = await self.get_history_multiple_tickers(
+                ticker_symbols,
+                start=datetime.now() - timedelta(days=5))
+
+            most_recent_prices = pd.DataFrame({
+                QC.TICKER_SYMBOL: [t.ticker for t in tickers_w_history],
+                'CurrentPrice': [t.history.get('Close', [None])[-1] or
+                                 avg_price_used_for_prediction[t.ticker] for t in tickers_w_history]
+            })
+            most_recent_prices = most_recent_prices.set_index([QC.TICKER_SYMBOL])
+
+            predict_df[TARGET_COLUMN] -= \
+                (most_recent_prices['CurrentPrice'] - avg_price_used_for_prediction
+                 ) / most_recent_prices['CurrentPrice']
+
+        return predict_df
+
+    async def get_history_multiple_tickers(self,
+                                           ticker_symbols: List[str],
+                                           **kwargs) -> List[yf.Ticker]:
+        tickers = [yf.Ticker(ticker_symbol) for ticker_symbol in ticker_symbols]
+
+        await asyncio.gather(*[ticker.get_history_async(**kwargs) for ticker in tickers])
+
+        return tickers
 
     def _build_data_pipeline(self, hyperparams: Hyperparams, df: pd.DataFrame):
         if self.data_pipeline:

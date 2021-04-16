@@ -76,3 +76,7 @@ class QuarterlyIndex:
 
     def to_xQyyyy(self) -> str:
         return f"{self.quarter}Q{self.year}"
+
+    def copy(self, ticker: str = ""):
+        # allow creating a new QuarterlyIndex from  the existing one
+        return QuarterlyIndex(ticker or self.ticker, self.quarter, self.year)

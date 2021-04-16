@@ -258,3 +258,14 @@ class QuarterFilter(BaseEstimator, TransformerMixin):
         print(f'QuarterFilter removed {X.shape[0] - X_new.shape[0]} rows')
         print(f"QuarterFilter output size: {X_new.shape}")
         return X_new
+
+
+class DummyTransform(BaseEstimator, TransformerMixin):
+    def __init__(self, **kwargs):
+        pass
+
+    def fit(self, X):
+        return self
+
+    def transform(self, X):
+        return X
