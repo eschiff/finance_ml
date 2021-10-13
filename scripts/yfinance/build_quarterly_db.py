@@ -133,5 +133,3 @@ def add_stockpup_data_to_db():
     db_conn.commit()
 
     db_conn.close()
-
-    return full_ticker_info

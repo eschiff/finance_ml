@@ -231,9 +231,17 @@ class DateFilter(BaseEstimator, TransformerMixin):
 
 
 class QuarterFilter(BaseEstimator, TransformerMixin):
-    def __init__(self, start_date: date, end_date: date):
-        start_quarter = QuarterlyIndex.from_date(start_date)
-        end_quarter = QuarterlyIndex.from_date(end_date)
+    """
+    Transform to filter by quarter or date.
+    Start Quarter <= OUTPUT DATA < End Quarter
+    """
+    def __init__(self,
+                 start_qtr: QuarterlyIndex = None, end_qtr: QuarterlyIndex = None,
+                 start_date: date = None, end_date: date = None):
+        assert (start_qtr and end_qtr) or (start_date and end_date)
+
+        start_quarter = start_qtr or QuarterlyIndex.from_date(start_date)
+        end_quarter = end_qtr or QuarterlyIndex.from_date(end_date)
         self.q_start = start_quarter.quarter
         self.y_start = start_quarter.year
         self.q_end = end_quarter.quarter
