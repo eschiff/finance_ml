@@ -41,7 +41,7 @@ def get_average_price_over_time_period(ticker: yf.Ticker,
 
     Returns:
         DataFrame with columns for Ticker Symbol, Date, Avg Price, Lo Price, Hi Price,
-        End of Quarter Price, and shares
+        End of Quarter Price, and shares. Date is date at end of each period.
     """
     start, end, time_period = _get_start_end_time_period(start, end, time_period)
     ticker.get_history(start=start, end=end)
@@ -57,18 +57,18 @@ def get_average_price_over_time_period(ticker: yf.Ticker,
                     ticker.history.index < datetime(period_end.year,
                                                     period_end.month,
                                                     period_end.day))]
+        if not period_data.empty:
+            period_data = pd.DataFrame({
+                QuarterlyColumns.TICKER_SYMBOL: [ticker.ticker],
+                QuarterlyColumns.DATE: [period_end],
+                QuarterlyColumns.PRICE_AVG: [period_data.Close.mean()],
+                QuarterlyColumns.PRICE_LO: [period_data.Close.min()],
+                QuarterlyColumns.PRICE_HI: [period_data.Close.max()],
+                QuarterlyColumns.PRICE_AT_END_OF_QUARTER: [period_data.Close[-1]],
+                QuarterlyColumns.VOLUME: [period_data.Volume[-1]]
+            })
 
-        period_data = pd.DataFrame({
-            QuarterlyColumns.TICKER_SYMBOL: [ticker.ticker],
-            QuarterlyColumns.DATE: [period_end],
-            QuarterlyColumns.PRICE_AVG: [period_data.Close.mean()],
-            QuarterlyColumns.PRICE_LO: [period_data.Close.min()],
-            QuarterlyColumns.PRICE_HI: [period_data.Close.max()],
-            QuarterlyColumns.PRICE_AT_END_OF_QUARTER: [period_data.Close[-1]],
-            QuarterlyColumns.VOLUME: [period_data.Volume[-1]]
-        })
-
-        output = pd.concat([output, period_data]).reset_index(drop=True)
+            output = pd.concat([output, period_data]).reset_index(drop=True)
 
         period_start = period_end
         period_end = period_start + timedelta(days=time_period)

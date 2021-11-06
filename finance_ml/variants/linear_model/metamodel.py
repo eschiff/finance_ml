@@ -11,6 +11,7 @@ from finance_ml.utils.constants import (
 from finance_ml.utils.transforms import (
     NumericalScaler, CategoricalToDummy, QuarterFilter,
     OutlierExtractor, CategoricalToNumeric, Splitter, DummyTransform)
+from finance_ml.utils import QuarterlyIndex
 
 from finance_ml.variants.linear_model.config import FEATURE_COLUMNS
 from finance_ml.variants.linear_model.hyperparams import Hyperparams
@@ -26,8 +27,10 @@ class FinanceMLMetamodel:
         self.result_dict = None
         self.feature_importance_dict = None
 
-    def fit(self, df: pd.DataFrame):
-        self._build_data_pipeline(self.hyperparams, df)
+    def fit(self, df: pd.DataFrame, current_qtr: QuarterlyIndex = None):
+        print(f"fitting df of shape: {df.shape}")
+
+        self._build_data_pipeline(self.hyperparams, df, current_qtr)
         X_transformed = self.data_pipeline.fit_transform(df)
 
         X_train, y_train, X_test, y_test = Splitter(
@@ -54,11 +57,16 @@ class FinanceMLMetamodel:
         Returns dataframe of predictions
         """
         assert (self.model is not None, "Model is not yet trained!")
+        current_price_avg = None
 
         # Run data pipeline on df, but remove date filter
         data_pipeline = copy.deepcopy(self.data_pipeline)
         data_pipeline.steps[0] = ('date_filter', DummyTransform())
         df_transformed = data_pipeline.transform(df)
+
+        if QC.PRICE_AVG in df_transformed.columns:
+            current_price_avg = df_transformed[QC.PRICE_AVG]
+            df_transformed.drop(columns=[QC.PRICE_AVG], inplace=True)
 
         predicted = self.model.predict(df_transformed)
 
@@ -68,8 +76,11 @@ class FinanceMLMetamodel:
         predict_df = predict_df.set_index(INDEX_COLUMNS).drop(columns=[FEATURE_COLUMNS[0]])
 
         if adjust_for_current_price:
+            assert current_price_avg, \
+                "Unable to adjust for current price if AvgPrice is not in prediction DataFrame"
+
             ticker_symbols = predict_df.index.levels[0]
-            avg_price_used_for_prediction = df_transformed[QC.PRICE_AVG]
+            avg_price_used_for_prediction = current_price_avg
 
             tickers_w_history = await self.get_history_multiple_tickers(
                 ticker_symbols,
@@ -97,9 +108,12 @@ class FinanceMLMetamodel:
 
         return tickers
 
-    def _build_data_pipeline(self, hyperparams: Hyperparams, df: pd.DataFrame):
-        if self.data_pipeline:
-            return
+    def _build_data_pipeline(self,
+                             hyperparams: Hyperparams,
+                             df: pd.DataFrame,
+                             current_quarter: QuarterlyIndex = None):
+        if not current_quarter:
+            current_quarter = QuarterlyIndex.from_date(datetime.now().date())
 
         non_categorical_columns = list(set(df.columns).difference({*CATEGORICAL_COLUMNS}))
 
@@ -108,8 +122,8 @@ class FinanceMLMetamodel:
         categorical_to_dummy = CategoricalToDummy(CATEGORICAL_COLUMNS)
         categorical_to_numeric = CategoricalToNumeric(CATEGORICAL_COLUMNS)
         date_filter = QuarterFilter(
-            start_date=hyperparams.START_DATE,
-            end_date=hyperparams.END_DATE or datetime.now() - timedelta(days=90))
+            start_qtr=current_quarter.time_travel(-hyperparams.NUM_QUARTERS_FOR_TRAINING),
+            end_qtr=current_quarter)
 
         self.data_pipeline = Pipeline(steps=[('filter_dates', date_filter)])
 

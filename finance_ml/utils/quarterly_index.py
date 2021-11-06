@@ -61,7 +61,7 @@ class QuarterlyIndex:
     @classmethod
     def from_date(cls, dt: date):
         # shift date into the next month if it's at the end of a month
-        new_date = dt + timedelta(days=15) if dt.day > 20 else dt
+        new_date = dt + timedelta(days=7) if dt.day > 24 else dt
 
         q = MONTH_TO_QUARTER[new_date.month]
 

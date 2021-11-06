@@ -19,16 +19,29 @@ MODEL_DIR = os.path.join(
 async def main(hyperparams: Hyperparams):
     df = preprocess_data(hyperparams)
 
+    print(f"data preprocessed: {df.shape}")
+
     columns_to_drop = list(set(df.columns).difference({*FEATURE_COLUMNS}))
+    # need to keep price avg and dividends per share to compute target column
+    if QC.DIVIDEND_PER_SHARE in columns_to_drop:
+        columns_to_drop.remove(QC.DIVIDEND_PER_SHARE)
+    if QC.PRICE_AVG in columns_to_drop:
+        columns_to_drop.remove(QC.PRICE_AVG)
     df.drop(columns=columns_to_drop, inplace=True)
-    df[TARGET_COLUMN] = df.apply(_get_target_col_prediction, axis=1,
+
+    df[TARGET_COLUMN] = df.apply(_create_target_column, axis=1,
                                  df=df, hyperparams=hyperparams)
 
-    # Dividend Per Share was used in getting Predicted Appreciation, but is no longer needed
+    # Columns were used in getting Predicted Appreciation, but are no longer needed
     df.drop(columns=[QC.DIVIDEND_PER_SHARE], inplace=True)
 
     # Get dataframe of rows to make predictions on (most recent rows)
+    # We want to keep PriceAvg in the dataframe for adjustment
     prediction_candidate_df = df[df[TARGET_COLUMN].isnull()].drop(columns=[TARGET_COLUMN])
+
+    df.drop(columns=[QC.PRICE_AVG], inplace=True)
+
+    # Drop NA's in target column for prediction purposes
     df.dropna(subset=[TARGET_COLUMN], inplace=True)
 
     metamodel = FinanceMLMetamodel(hyperparams)
@@ -58,7 +71,7 @@ async def main(hyperparams: Hyperparams):
     return y_pred, df
 
 
-def _get_target_col_prediction(row: pd.Series, df: pd.DataFrame, hyperparams: Hyperparams):
+def _create_target_column(row: pd.Series, df: pd.DataFrame, hyperparams: Hyperparams):
     try:
         current_price = row[QC.PRICE_AVG]
         dividends = 0

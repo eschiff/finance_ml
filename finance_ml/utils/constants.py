@@ -197,6 +197,9 @@ class QuarterlyColumns:
     PRICE_BOOK_RATIO = 'PriceToBookRatio'
     FCF = 'FreeCashFlow'
     PROFIT_MARGIN = 'ProfitMargin'
+    RND_RATIO = "RnDtoRevenue"
+    CASH_RATIO = "CashToRevenue"
+    EXPENSES_RATIO = "ExpensesToRevenue"
 
     @staticmethod
     def columns():
@@ -237,6 +240,8 @@ NUMERIC_COLUMNS = [
     QuarterlyColumns.STOCKHOLDER_EQUITY,
     QuarterlyColumns.VOLUME,
     QuarterlyColumns.EARNINGS,
+    QuarterlyColumns.RND_RATIO,
+    QuarterlyColumns.CASH_RATIO
 ]
 
 COLUMNS_TO_COMPARE_TO_MARKET_INDICES = [
@@ -269,7 +274,16 @@ FORMULAE = {
             QuarterlyColumns.MARKET_CAP],
 
     QuarterlyColumns.PROFIT_MARGIN:
-        lambda row: (row[QuarterlyColumns.NET_INCOME] / row[QuarterlyColumns.REVENUE])
+        lambda row: (row[QuarterlyColumns.NET_INCOME] / row[QuarterlyColumns.REVENUE]),
+
+    QuarterlyColumns.RND_RATIO:
+        lambda row: (row[QuarterlyColumns.RND] / row[QuarterlyColumns.REVENUE]),
+
+    QuarterlyColumns.CASH_RATIO:
+        lambda row: (row[QuarterlyColumns.CASH] / row[QuarterlyColumns.REVENUE]),
+
+    QuarterlyColumns.EXPENSES_RATIO:
+        lambda row: (row[QuarterlyColumns.OPERATING_EXPENSES] / row[QuarterlyColumns.REVENUE])
 }
 
 INDEX_COLUMNS = [QuarterlyColumns.TICKER_SYMBOL,

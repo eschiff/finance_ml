@@ -22,10 +22,8 @@ class Hyperparams:
     N_ESTIMATORS = 100
     EARLY_STOPPING_ROUNDS = 5
 
-    # What year to start training data at
-    START_DATE = datetime(2000, 1, 1)
-    # end date to use for training data. None if today
-    END_DATE = None
+    # How many quarters back to use to train on
+    NUM_QUARTERS_FOR_TRAINING = 20 * 4  # 20 years worth
 
     INCLUDE_DIVIDENDS_IN_PREDICTED_PRICE = True
 

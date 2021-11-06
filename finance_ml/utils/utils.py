@@ -3,7 +3,8 @@ import sqlite3
 from typing import Tuple
 
 from finance_ml.utils.constants import (
-    QUARTERLY_DB_FILE_PATH, QuarterlyColumns, STOCKPUP_TABLE_NAME)
+    QUARTERLY_DB_FILE_PATH, QuarterlyColumns, STOCKPUP_TABLE_NAME,
+    YF_QUARTERLY_TABLE_NAME)
 
 
 def get_ticker_symbols(source='DB'):
@@ -11,7 +12,7 @@ def get_ticker_symbols(source='DB'):
         try:
             db_conn = sqlite3.connect(QUARTERLY_DB_FILE_PATH)
             command = f'''
-    SELECT DISTINCT {QuarterlyColumns.TICKER_SYMBOL} FROM {STOCKPUP_TABLE_NAME}
+    SELECT DISTINCT {QuarterlyColumns.TICKER_SYMBOL} FROM {YF_QUARTERLY_TABLE_NAME}
     '''
             print(f"Executing command: {command}")
             result = db_conn.execute(command)

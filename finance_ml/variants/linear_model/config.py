@@ -1,6 +1,6 @@
 from finance_ml.utils.constants import (
     NUMERIC_COLUMNS, FORMULAE, Q_DELTA_PREFIX, YOY_DELTA_PREFIX,
-    COLUMNS_TO_COMPARE_TO_MARKET_INDICES, VS_MKT_IDX, QuarterlyColumns, CATEGORICAL_COLUMNS)
+    COLUMNS_TO_COMPARE_TO_MARKET_INDICES, VS_MKT_IDX, QuarterlyColumns)
 from finance_ml.variants.linear_model.hyperparams import Hyperparams
 
 ALL_NUMERIC_COLUMNS = NUMERIC_COLUMNS + list(FORMULAE.keys())
@@ -15,6 +15,8 @@ FEATURE_COLUMNS = [f"{prefix}{col_name}"
                    for col_name in ALL_NUMERIC_COLUMNS] + \
                   list(FORMULAE.keys()) + \
                   VS_MARKET_INDICES_COLUMNS + \
-                  CATEGORICAL_COLUMNS + \
-                  NUMERIC_COLUMNS + \
-                  [QuarterlyColumns.DIVIDEND_PER_SHARE]
+                  [
+                      QuarterlyColumns.INDUSTRY,
+                      QuarterlyColumns.EBIT,
+                      QuarterlyColumns.STOCKHOLDER_EQUITY
+                  ]

@@ -8,7 +8,8 @@ from finance_ml.utils.constants import (
     QuarterlyColumns as QC, StockPupColumns as SPC, STOCKPUP_TABLE_NAME, QUARTERLY_DB_FILE_PATH,
     YF_QUARTERLY_TABLE_NAME, INDEX_COLUMNS, MISSING_SECTOR, MISSING_INDUSTRY,
     STOCK_GENERAL_INFO_CSV, FORMULAE, Q_DELTA_PREFIX, YOY_DELTA_PREFIX, NUMERIC_COLUMNS,
-    COLUMNS_TO_COMPARE_TO_MARKET_INDICES, QUARTER, YEAR, VS_MKT_IDX, CATEGORICAL_COLUMNS
+    COLUMNS_TO_COMPARE_TO_MARKET_INDICES, QUARTER, YEAR, VS_MKT_IDX, CATEGORICAL_COLUMNS,
+    TICKER_SYMBOL
 )
 from finance_ml.utils.quarterly_index import QuarterlyIndex
 
@@ -32,6 +33,8 @@ def preprocess_data(hyperparams: Hyperparams) -> pd.DataFrame:
     quarterly_df[QC.INDUSTRY].fillna(MISSING_INDUSTRY, inplace=True)
     quarterly_df[QC.DEBT_SHORT].fillna(0, inplace=True)
 
+    print(f"Initial combined data size: {quarterly_df.shape}")
+
     # Apply econ statistic formulae
     quarterly_df = apply_engineered_columns(quarterly_df,
                                             columns=NUMERIC_COLUMNS,
@@ -45,7 +48,10 @@ def preprocess_data(hyperparams: Hyperparams) -> pd.DataFrame:
 
     market_index_df.sort_index(inplace=True)
 
-    quarterly_df = compare_to_market_indices(quarterly_df, market_index_df, hyperparams)
+    quarterly_df = add_comparison_to_market_index(df=quarterly_df,
+                                                  market_index_df=market_index_df,
+                                                  market_indices=hyperparams.MARKET_INDICES,
+                                                  columns=COLUMNS_TO_COMPARE_TO_MARKET_INDICES)
 
     quarterly_df[QC.QUARTER] = quarterly_df.index.get_level_values(
         QC.QUARTER)
@@ -109,10 +115,7 @@ def preprocess_quarterly_data(hyperparams: Hyperparams) -> Tuple[pd.DataFrame, p
                                  (~quarterly_df[QC.TICKER_SYMBOL].isin(
                                      hyperparams.MARKET_INDICES)))]
 
-    quarterly_df.set_index([QC.TICKER_SYMBOL,
-                            QC.QUARTER,
-                            QC.YEAR],
-                           inplace=True)
+    quarterly_df.set_index(INDEX_COLUMNS, inplace=True)
 
     quarterly_df[QC.AVG_RECOMMENDATION_SCORE] = quarterly_df.apply(
         get_avg_recommendation_score, axis=1)
@@ -190,28 +193,26 @@ def preprocess_stockpup_data() -> pd.DataFrame:
     return df
 
 
-def _add_delta_columns(row: pd.Series, df: pd.DataFrame, columns: list, num_quarters: int):
-    try:
-        # row.name returns the multiIndex tuple
-        prev_quarter_tuple = QuarterlyIndex(*row.name).time_travel(-num_quarters).to_tuple()
-        prev_quarter_row = df.loc[prev_quarter_tuple]
-    except Exception as e:
-        # print(f'Unable to find quarterly info for {prev_quarter_tuple}')
-        prev_quarter_row = pd.DataFrame()
+def add_delta_columns(df: pd.DataFrame, columns: list, num_quarters: int, dropna=False):
+    tickers = set(df.index.levels[TICKER_SYMBOL])
 
-    if not prev_quarter_row.empty:
-        new_cols = []
+    prefix = YOY_DELTA_PREFIX if num_quarters == 4 else Q_DELTA_PREFIX
+    column_rename_dict = {col: f"{prefix}{col}" for col in columns}
 
-        for col in columns:
-            if prev_quarter_row[col] == 0:
-                new_cols.append(0)
-            else:
-                # converting to float to get rid of index terms
-                new_cols.append(float((row[col] - prev_quarter_row[col]) / prev_quarter_row[col]))
+    delta_df = pd.DataFrame()
+    for ticker in tickers:
+        ticker_df = df[df.index.isin([ticker], level=TICKER_SYMBOL)][columns]
+        ticker_df = ticker_df.sort_index(level=YEAR, ascending=True)
+        pct_change = ticker_df.pct_change(periods=num_quarters).rename(columns=column_rename_dict)
+        delta_df = delta_df.append(pct_change)
 
-        return pd.Series(new_cols)
+    output = df.join(delta_df)
+    if dropna:
+        output = output.dropna(subset=set(column_rename_dict.values()))
 
-    return pd.Series([None] * len(columns))
+    print(f"Output of delta {num_quarters} Quarters: {output.shape}")
+
+    return output
 
 
 def apply_engineered_columns(df: pd.DataFrame,
@@ -232,53 +233,37 @@ def apply_engineered_columns(df: pd.DataFrame,
     for col_name, fn in formulae.items():
         df[col_name] = df.apply(fn, axis=1)
 
-    q_delta_col_names = [f'{Q_DELTA_PREFIX}{col}' for col in columns]
-    yoy_delta_col_names = [f'{YOY_DELTA_PREFIX}{col}' for col in columns]
+    new_df = add_delta_columns(df, columns, 1)
+    new_df = add_delta_columns(new_df, columns, 4)
 
-    df[q_delta_col_names] = df.apply(_add_delta_columns,
-                                     axis=1, df=df, columns=columns, num_quarters=1)
-    df[yoy_delta_col_names] = df.apply(_add_delta_columns,
-                                       axis=1, df=df, columns=columns, num_quarters=4)
-
-    return df
+    return new_df
 
 
-def _compare_to_market_index(
-        row: pd.Series, market_indices: List[str], market_index_df: pd.DataFrame):
-    new_cols = []
-    for col in COLUMNS_TO_COMPARE_TO_MARKET_INDICES:
-        for mkt_idx in market_indices:
-            try:
-                mkt_idx_row = market_index_df.loc[mkt_idx, row.name[QUARTER], row.name[YEAR]]
-            except:
-                # print(f'Unable to find {mkt_idx} Q{row.name[QUARTER]} {row.name[YEAR]}')
-                mkt_idx_row = pd.DataFrame()
+def add_comparison_to_market_index(df: pd.DataFrame,
+                                   market_index_df: pd.DataFrame,
+                                   market_indices: List[str],
+                                   columns: List[str],
+                                   dropna=False):
+    idx = pd.IndexSlice
+    output = df.copy()
 
-            if not mkt_idx_row.empty:
-                if mkt_idx_row[col] == 0:
-                    new_cols.append(0)
-                else:
-                    # converting to float to drop index terms
-                    new_cols.append(float(row[col] / mkt_idx_row[col]))
-            else:
-                new_cols.append(None)
+    for mkt_idx in market_indices:
+        mkt_idx_df = market_index_df.loc[
+            idx[mkt_idx, :, :]]  # removes mkt_idx from multiIndex so we can use as divisor
 
-    return pd.Series(new_cols)
+        for col in columns:
+            vs_mkt_idx = df[col] / mkt_idx_df[col]
+            vs_mkt_idx.name = f"{col}{VS_MKT_IDX}{mkt_idx}"
 
+            output = output.join(vs_mkt_idx)
 
-def compare_to_market_indices(df: pd.DataFrame,
-                              market_index_df: pd.DataFrame,
-                              hyperparams: Hyperparams) -> pd.DataFrame:
-    vs_market_indices_col_names = [f'{col}{VS_MKT_IDX}{mkt_idx}'
-                                   for col in COLUMNS_TO_COMPARE_TO_MARKET_INDICES
-                                   for mkt_idx in hyperparams.MARKET_INDICES]
+    if dropna:
+        output = output.dropna(
+            subset=[f"{col}{VS_MKT_IDX}{mkt_idx}" for mkt_idx in market_indices for col in columns])
 
-    df[vs_market_indices_col_names] = df.apply(_compare_to_market_index,
-                                               axis=1,
-                                               market_indices=hyperparams.MARKET_INDICES,
-                                               market_index_df=market_index_df)
+    print(f"Output of comparison to market index: {output.shape}")
 
-    return df
+    return output
 
 
 def get_avg_recommendation_score(row: pd.Series):
