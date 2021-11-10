@@ -28,13 +28,15 @@ class FinanceMLMetamodel:
         self.feature_importance_dict = None
 
     def fit(self, df: pd.DataFrame, current_qtr: QuarterlyIndex = None):
-        print(f"fitting df of shape: {df.shape}")
+        print(f"\nFitting data for: {current_qtr}")
 
         self._build_data_pipeline(self.hyperparams, df, current_qtr)
         X_transformed = self.data_pipeline.fit_transform(df)
 
         X_train, y_train, X_test, y_test = Splitter(
             test_size=self.hyperparams.TEST_SIZE).transform(X_transformed)
+
+        print(f"Train Size: {X_train.shape}, Test Size: {X_test.shape}")
 
         self.model, self.result_dict = train_and_evaluate(self.hyperparams,
                                                           X_train,

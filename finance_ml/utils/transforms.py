@@ -251,6 +251,7 @@ class QuarterFilter(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
+        print(f"Filtering data between {self.q_start}Q{self.y_start} and {self.q_end}Q{self.y_end}")
         X_new = X[(
             (X.index.get_level_values(QuarterlyColumns.YEAR) > self.y_start) | (
                 (X.index.get_level_values(QuarterlyColumns.QUARTER) >= self.q_start) & (
@@ -263,8 +264,7 @@ class QuarterFilter(BaseEstimator, TransformerMixin):
             )
         )]
 
-        print(f'QuarterFilter removed {X.shape[0] - X_new.shape[0]} rows')
-        print(f"QuarterFilter output size: {X_new.shape}")
+        print(f'QuarterFilter removed {X.shape[0] - X_new.shape[0]} rows. Output size: {X_new.shape}')
         return X_new
 
 

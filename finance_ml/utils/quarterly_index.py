@@ -69,7 +69,7 @@ class QuarterlyIndex:
         return cls('', q, year)
 
     def to_tuple(self):
-        return (self.ticker, self.quarter, self.year)
+        return self.ticker, self.quarter, self.year
 
     def to_date(self, day=1):
         return datetime(self.year, self.quarter * 3, day).date()

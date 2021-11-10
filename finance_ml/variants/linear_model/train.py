@@ -56,7 +56,7 @@ def train_and_evaluate(hyperparams: Hyperparams, X_train, y_train, X_test, y_tes
             in sorted(zip(X_train.columns, model.feature_importances_),
                       key=lambda tup: tup[1])}
 
-        print(f"Feature Importances: {feature_importance_dict}")
+        # print(f"Feature Importances: {feature_importance_dict}")
 
     y_pred = model.predict(X_test)
 

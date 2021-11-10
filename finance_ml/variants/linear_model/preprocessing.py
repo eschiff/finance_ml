@@ -9,14 +9,15 @@ from finance_ml.utils.constants import (
     YF_QUARTERLY_TABLE_NAME, INDEX_COLUMNS, MISSING_SECTOR, MISSING_INDUSTRY,
     STOCK_GENERAL_INFO_CSV, FORMULAE, Q_DELTA_PREFIX, YOY_DELTA_PREFIX, NUMERIC_COLUMNS,
     COLUMNS_TO_COMPARE_TO_MARKET_INDICES, QUARTER, YEAR, VS_MKT_IDX, CATEGORICAL_COLUMNS,
-    TICKER_SYMBOL
+    TICKER_SYMBOL, TARGET_COLUMN
 )
 from finance_ml.utils.quarterly_index import QuarterlyIndex
+from finance_ml.variants.linear_model.config import FEATURE_COLUMNS
 
 from finance_ml.variants.linear_model.hyperparams import Hyperparams
 
 
-def preprocess_data(hyperparams: Hyperparams) -> pd.DataFrame:
+def preprocess_data(hyperparams: Hyperparams) -> Tuple[pd.DataFrame, pd.DataFrame]:
     quarterly_df, market_index_df = preprocess_quarterly_data(hyperparams)
     stockpup_df = preprocess_stockpup_data()
     stock_info_df = read_stock_info()
@@ -65,7 +66,59 @@ def preprocess_data(hyperparams: Hyperparams) -> pd.DataFrame:
         except KeyError:
             pass
 
-    return quarterly_df
+    columns_to_drop = list(set(quarterly_df.columns).difference({*FEATURE_COLUMNS}))
+    # need to keep price avg and dividends per share to compute target column
+    if QC.DIVIDEND_PER_SHARE in columns_to_drop:
+        columns_to_drop.remove(QC.DIVIDEND_PER_SHARE)
+    if QC.PRICE_AVG in columns_to_drop:
+        columns_to_drop.remove(QC.PRICE_AVG)
+    quarterly_df.drop(columns=columns_to_drop, inplace=True)
+
+    quarterly_df = add_target_column(quarterly_df, hyperparams)
+
+    # Columns were used in getting Predicted Appreciation, but are no longer needed
+    quarterly_df.drop(columns=[QC.DIVIDEND_PER_SHARE], inplace=True)
+
+    # Get dataframe of rows to make predictions on (most recent rows)
+    # We want to keep PriceAvg in the dataframe for adjustment
+    prediction_candidate_df = quarterly_df[quarterly_df[TARGET_COLUMN].isnull()].drop(
+        columns=[TARGET_COLUMN])
+
+    quarterly_df.drop(columns=[QC.PRICE_AVG], inplace=True)
+
+    print(f"Preprocessed quarterly df: {quarterly_df.shape}")
+
+    return quarterly_df, prediction_candidate_df
+
+
+def add_target_column(df: pd.DataFrame, hyperparams: Hyperparams) -> pd.DataFrame:
+    """Adds a target column of predicted appreciation"""
+    tickers = set(df.index.levels[TICKER_SYMBOL])
+
+    new_df = pd.DataFrame()
+    for ticker in tickers:
+        ticker_df = df[df.index.isin([ticker], level=TICKER_SYMBOL)][[
+            QC.PRICE_AVG, QC.DIVIDEND_PER_SHARE]]
+        ticker_df = ticker_df.sort_index(level=YEAR, ascending=True)
+
+        ticker_df["FuturePrice"] = ticker_df[QC.PRICE_AVG].shift(
+            periods=-hyperparams.N_QUARTERS_OUT_TO_PREDICT)
+
+        if hyperparams.INCLUDE_DIVIDENDS_IN_PREDICTED_PRICE:
+            ticker_df["TotalDividendsPaid"] = df[QC.DIVIDEND_PER_SHARE].rolling(
+                min_periods=1, window=hyperparams.N_QUARTERS_OUT_TO_PREDICT).sum().shift(
+                1 - hyperparams.N_QUARTERS_OUT_TO_PREDICT).fillna(0)
+
+            ticker_df["FuturePrice"] = ticker_df["FuturePrice"] + ticker_df["TotalDividendsPaid"]
+
+        # Target column is predicted appreciation (as a percentage. 2.0 = 2% increase)
+        ticker_df[TARGET_COLUMN] = round(
+            100.0 * (ticker_df["FuturePrice"] - ticker_df[QC.PRICE_AVG]
+                     ) / ticker_df[QC.PRICE_AVG], 2)
+        new_df = new_df.append(ticker_df[[TARGET_COLUMN]])
+
+    output = df.join(new_df)
+    return output
 
 
 def read_stock_info() -> pd.DataFrame:
@@ -210,8 +263,6 @@ def add_delta_columns(df: pd.DataFrame, columns: list, num_quarters: int, dropna
     if dropna:
         output = output.dropna(subset=set(column_rename_dict.values()))
 
-    print(f"Output of delta {num_quarters} Quarters: {output.shape}")
-
     return output
 
 
@@ -260,8 +311,6 @@ def add_comparison_to_market_index(df: pd.DataFrame,
     if dropna:
         output = output.dropna(
             subset=[f"{col}{VS_MKT_IDX}{mkt_idx}" for mkt_idx in market_indices for col in columns])
-
-    print(f"Output of comparison to market index: {output.shape}")
 
     return output
 

@@ -17,32 +17,9 @@ MODEL_DIR = os.path.join(
 
 
 async def main(hyperparams: Hyperparams):
-    df = preprocess_data(hyperparams)
-
-    print(f"data preprocessed: {df.shape}")
-
-    columns_to_drop = list(set(df.columns).difference({*FEATURE_COLUMNS}))
-    # need to keep price avg and dividends per share to compute target column
-    if QC.DIVIDEND_PER_SHARE in columns_to_drop:
-        columns_to_drop.remove(QC.DIVIDEND_PER_SHARE)
-    if QC.PRICE_AVG in columns_to_drop:
-        columns_to_drop.remove(QC.PRICE_AVG)
-    df.drop(columns=columns_to_drop, inplace=True)
-
-    df[TARGET_COLUMN] = df.apply(_create_target_column, axis=1,
-                                 df=df, hyperparams=hyperparams)
-
-    # Columns were used in getting Predicted Appreciation, but are no longer needed
-    df.drop(columns=[QC.DIVIDEND_PER_SHARE], inplace=True)
-
-    # Get dataframe of rows to make predictions on (most recent rows)
-    # We want to keep PriceAvg in the dataframe for adjustment
-    prediction_candidate_df = df[df[TARGET_COLUMN].isnull()].drop(columns=[TARGET_COLUMN])
-
-    df.drop(columns=[QC.PRICE_AVG], inplace=True)
-
-    # Drop NA's in target column for prediction purposes
+    df, prediction_candidate_df = preprocess_data(hyperparams)
     df.dropna(subset=[TARGET_COLUMN], inplace=True)
+    print(f"data preprocessed: {df.shape}")
 
     metamodel = FinanceMLMetamodel(hyperparams)
     metamodel.fit(df)
@@ -69,25 +46,3 @@ async def main(hyperparams: Hyperparams):
           f" {hyperparams.N_QUARTERS_OUT_TO_PREDICT} Quarters in the future: \n{n_largest}")
 
     return y_pred, df
-
-
-def _create_target_column(row: pd.Series, df: pd.DataFrame, hyperparams: Hyperparams):
-    try:
-        current_price = row[QC.PRICE_AVG]
-        dividends = 0
-
-        if hyperparams.INCLUDE_DIVIDENDS_IN_PREDICTED_PRICE:
-            for i in range(hyperparams.N_QUARTERS_OUT_TO_PREDICT):
-                target_prediction_index = QuarterlyIndex(*row.name).time_travel(i).to_tuple()
-
-                dividends += df.loc[target_prediction_index][QC.DIVIDEND_PER_SHARE] or 0
-
-        target_prediction_index = QuarterlyIndex(*row.name).time_travel(
-            hyperparams.N_QUARTERS_OUT_TO_PREDICT).to_tuple()
-
-        prediction_data = df.loc[target_prediction_index]
-
-        return prediction_data[f'{hyperparams.PREDICTION_TARGET_PREFIX}{QC.PRICE_AVG}'] + (
-                dividends / current_price)
-    except:
-        return None

@@ -7,7 +7,7 @@ ALL_NUMERIC_COLUMNS = NUMERIC_COLUMNS + list(FORMULAE.keys())
 
 VS_MARKET_INDICES_COLUMNS = [f"{col}{VS_MKT_IDX}{mkt_idx}"
                              for col in COLUMNS_TO_COMPARE_TO_MARKET_INDICES
-                             for mkt_idx in Hyperparams.MARKET_INDICES]
+                             for mkt_idx in Hyperparams().MARKET_INDICES]
 
 # all feature columns to use in the model.
 FEATURE_COLUMNS = [f"{prefix}{col_name}"

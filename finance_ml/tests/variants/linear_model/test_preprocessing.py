@@ -2,11 +2,13 @@ import pandas as pd
 from pandas.util.testing import assert_almost_equal
 
 from finance_ml.utils.constants import (
-    QuarterlyColumns as QC, Q_DELTA_PREFIX, YOY_DELTA_PREFIX, VS_MKT_IDX
+    QuarterlyColumns as QC, Q_DELTA_PREFIX, YOY_DELTA_PREFIX, VS_MKT_IDX, TICKER_SYMBOL,
+    TARGET_COLUMN
 )
 from finance_ml.variants.linear_model.preprocessing import (
-    add_comparison_to_market_index, add_delta_columns
+    add_comparison_to_market_index, add_delta_columns, add_target_column
 )
+from finance_ml.variants.linear_model.config import Hyperparams
 
 
 def test_add_delta_columns(yf_input_df):
@@ -55,3 +57,36 @@ def test_add_comparison_to_market_index(yf_input_df, market_index_df, mkt_idx):
             yf_input_df.loc[idx['AAPL', 2, 2021]][QC.PRICE_AVG] /
             market_index_df.loc[idx[mkt_idx, 2, 2021]][QC.PRICE_AVG]
     )
+
+
+def test_add_target_column_one_quarter_out_no_dividends(yf_input_df, tickers):
+    hp = Hyperparams(N_QUARTERS_OUT_TO_PREDICT=1,
+                     INCLUDE_DIVIDENDS_IN_PREDICTED_PRICE=True)
+    yf_input_df[QC.DIVIDEND_PER_SHARE] = 0.0
+
+    output = add_target_column(yf_input_df, hp)
+
+    for ticker in tickers:
+        predicted_appreciation = list(
+            output[output.index.isin([ticker], level=TICKER_SYMBOL)][TARGET_COLUMN])
+        assert all([i == 2.0 for i in predicted_appreciation[:-1]])
+        assert pd.isnull(predicted_appreciation[-1])
+
+    assert set(output.columns) - set(yf_input_df.columns) == {TARGET_COLUMN}
+
+
+def test_add_target_column_four_quarters_out_w_dividends(yf_input_df, tickers):
+    hp = Hyperparams(N_QUARTERS_OUT_TO_PREDICT=4,
+                     INCLUDE_DIVIDENDS_IN_PREDICTED_PRICE=True)
+    yf_input_df[QC.DIVIDEND_PER_SHARE] = 1.0
+
+    output = add_target_column(yf_input_df, hp)
+
+    for ticker in tickers:
+        # 'A' has a lower value, so the 1.0 dividend counts for more.
+        rough_appreciation = 12 if ticker == 'A' else 10
+
+        predicted_appreciation = list(
+            output[output.index.isin([ticker], level=TICKER_SYMBOL)][TARGET_COLUMN])
+        assert all([i > rough_appreciation for i in predicted_appreciation[:-4]])
+        assert all(pd.isnull(i) for i in predicted_appreciation[-4:])
