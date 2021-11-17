@@ -13,7 +13,7 @@ class Hyperparams:
 
     MODEL = LGBMRegressor
 
-    N_STOCKS_TO_BUY: int = 10
+    N_STOCKS_TO_BUY: int = 7
 
     # Hyperparams for LGBM
     RANDOM_SEED: int = 32
@@ -24,7 +24,7 @@ class Hyperparams:
     EARLY_STOPPING_ROUNDS: int = 5
 
     # How many quarters back to use to train on
-    NUM_QUARTERS_FOR_TRAINING: int = 20 * 4  # 20 years worth
+    NUM_QUARTERS_FOR_TRAINING: int = 12
 
     INCLUDE_DIVIDENDS_IN_PREDICTED_PRICE: bool = True
 

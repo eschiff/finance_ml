@@ -61,7 +61,7 @@ class Portfolio:
                 self.portfolio[idx] = value * (1 + change_in_price)
                 total_value += value * (1 + change_in_price)
             except:
-                print(f'Failed to find data for {new_quarter_idx}')
+                print(f'Failed to find data for {new_quarter_idx}. Setting to zero')
                 self.portfolio[idx] = 0
 
             # Sell off stocks that we've held for the desired period
