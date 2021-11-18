@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "finance_ml"
+version = "0.1.0"
+description = "Predicting share prices from quarterly data"
+authors = ["Ezra Schiff <ezra.schiff@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+requests = "^2.22"
+pandas = "^1.0"
+dataclasses = "^0.6.0"
+yfinance-ez = "^0.5.6"
+fastapi = "^0.70.0"
+sklearn = "^0.0"
+lightgbm = "^3.3.1"
+
+
+[tool.poetry.dev-dependencies]
+pytest = "^3.0"
+pytest-cov = "^2.8.1"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

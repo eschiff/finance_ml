@@ -23,8 +23,8 @@ def test_portfolio_hold_for_one_quarter(quarterly_df_with_predictions, growth_ra
     portfolio.update()
     assert portfolio.portfolio == {}
     assert portfolio.cash == starting_cash * (1 + growth_rate)
-    assert portfolio.performance == [starting_cash,
-                                     starting_cash * (1 + growth_rate)]
+    assert list(portfolio.performance.items()) == [('1Q2020', starting_cash),
+                                                   ('2Q2020', starting_cash * (1 + growth_rate))]
 
 
 def test_portfolio_hold_for_four_quarters(quarterly_df_with_predictions, growth_rate, tickers):
@@ -66,10 +66,8 @@ def test_portfolio_hold_for_four_quarters(quarterly_df_with_predictions, growth_
         QuarterlyIndex('AAPL', qtr, yr): (starting_cash_per_share) * ((1 + growth_rate) ** 2),
         QuarterlyIndex('AAPL', qtr + 1, yr): (starting_cash_per_share) * (1 + growth_rate)}
     assert portfolio.cash == starting_cash * 1 / 2
-    assert portfolio.performance == [starting_cash,
-                                     starting_cash * (3 / 4) +
-                                     n * starting_cash_per_share * (1 + growth_rate),
-                                     starting_cash * (1 / 2) +
-                                     n * starting_cash_per_share * (1 + growth_rate) +
-                                     n * starting_cash_per_share * (1 + growth_rate) ** 2
-                                     ]
+    assert list(portfolio.performance.items()) == [
+        ('1Q2020', starting_cash),
+        ('2Q2020', starting_cash * (3 / 4) + n * starting_cash_per_share * (1 + growth_rate)),
+        ('3Q2020', starting_cash * (1 / 2) + n * starting_cash_per_share * (1 + growth_rate) +
+         n * starting_cash_per_share * (1 + growth_rate) ** 2)]

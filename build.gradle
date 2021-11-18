@@ -1,0 +1,93 @@
+ext {
+    projectName = 'finance-ml'
+    baseImageTag = '0.1.0'
+    dataDir = "${project.projectDir}/data"
+    workDir = "/app"
+}
+
+def getGitHash = { ->
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'rev-parse', '--short', 'HEAD'
+        standardOutput = stdout
+    }
+    return stdout.toString().trim()
+}
+
+def getGitBranchName = { ->
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'rev-parse', '--abbrev-ref', 'HEAD'
+        standardOutput = stdout
+    }
+    return stdout.toString().trim()
+}
+
+def getBuildImageTag = { ->
+    def branchName = getGitBranchName().replaceAll('[_/]', '-')
+    def gitHash = getGitHash()
+    def versionTemplate = "${project.ext.baseImageTag}-${branchName}.${gitHash}"
+
+    def buildImageRepositoryTag = "${project.ext.projectName}:${versionTemplate}"
+    return buildImageRepositoryTag
+}
+
+task("buildImage", type: Exec) {
+    executable 'docker'
+
+    doFirst {
+        args = ["build",
+                "-f", "Dockerfile",
+                "--rm",
+                "-t", "${getBuildImageTag()}",
+                project.projectDir
+        ]
+    }
+}
+
+task("debug", type: Exec, dependsOn: "buildImage") {
+    def stdout = new ByteArrayOutputStream()
+    standardOutput = stdout
+
+    executable 'docker'
+    doFirst {
+        args = ["run", "-d",
+                "-v", "${project.ext.dataDir}:${project.ext.workDir}/data",
+                "--entrypoint", "/bin/bash",
+                "-it", "${getBuildImageTag()}",
+                "-s"]
+    }
+
+    doLast {
+        def debugImageId = stdout.toString().trim()
+        def debugCommand = "docker exec -it"
+        def debugEntrypoint = "bash"
+        def debugFile = new File("debug")
+        debugFile.text = "${debugCommand} ${debugImageId} ${debugEntrypoint}"
+        debugFile.setExecutable(true, false)
+    }
+}
+
+task("test", type: Exec, dependsOn: "buildImage") {
+    executable "docker"
+
+    doFirst {
+        def pytestCommand = [
+          "pytest",
+          "finance_ml",
+          "--disable-pytest-warnings",
+          "--cov", "finance_ml",
+          "--cov-report", "term-missing",
+          "-m", "not integration",
+          "-vv"
+        ]
+
+        def testRunArgs = ["run", "--rm", "${getBuildImageTag()}"] + pytestCommand
+        if (project.hasProperty('args')) {
+            // Allow users to pass in parameters to pytest.
+            // Example usage: `gradle test -Pargs="-s -k test_manifest.py"`
+            testRunArgs.addAll(project.property('args').split(' '))
+        }
+        args testRunArgs
+    }
+}

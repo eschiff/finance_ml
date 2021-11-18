@@ -1,0 +1,68 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finance-ml
+  labels:
+    app: finance-ml
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: finance-ml
+  template:
+    metadata:
+      labels:
+        app: finance-ml
+    spec:
+      containers:
+        - name: finance-ml
+          image: finance-ml
+          ports:
+            - containerPort: 22222
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 22222
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 22222
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          env:
+            - name: ZOI_ENVIRONMENT
+              value: "local"
+            - name: SERVER_PORT
+              value: "22222"
+            - name: DD_TRACE_AGENT_PORT
+              value: "8126"
+            - name: DD_SERVICE_NAME
+              value: finance-ml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finance-ml
+  labels:
+    app: finance-ml
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 22222
+      protocol: TCP
+      name: finance-ml-port
+  selector:
+    app: finance-ml
+---
