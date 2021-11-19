@@ -310,7 +310,7 @@ def update_quarterly_database(ticker_symbols: Optional[List[str]] = None,
 
             if split_factor != 1:
                 if auto_backfill_splits:
-                    do_backfill = True
+                    do_backfill = 'y'
                 else:
                     do_backfill = input(
                         f"Found stock split - {split_factor}x in Q{split_quarter} {split_year}. "
