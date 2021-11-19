@@ -10,4 +10,4 @@ from finance_ml.scripts.yfinance.update_quarterly_db import update_quarterly_dat
 if __name__ == '__main__':
     ticker_symbols = sys.argv[1:] if len(sys.argv) > 1 else None
 
-    sys.exit(update_quarterly_database(ticker_symbols))
+    sys.exit(update_quarterly_database(ticker_symbols, auto_backfill_splits=True))

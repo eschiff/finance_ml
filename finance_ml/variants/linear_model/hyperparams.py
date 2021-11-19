@@ -24,7 +24,7 @@ class Hyperparams:
     EARLY_STOPPING_ROUNDS: int = 5
 
     # How many quarters back to use to train on
-    NUM_QUARTERS_FOR_TRAINING: int = 12
+    NUM_QUARTERS_FOR_TRAINING: int = 16
 
     INCLUDE_DIVIDENDS_IN_PREDICTED_PRICE: bool = True
 

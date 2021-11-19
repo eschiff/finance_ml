@@ -2,15 +2,14 @@
 Author: Ezra Schiff <ezra.schiff@gmail.com>
 
 ## Overview
-This project aims to predict which tickers are going to perform best
-n quarters (default 4 quarters) out based on quarterly financial data
-scraped from Yahoo Finance's API. 
+This project aims to predict which tickers are going to perform best when held for
+n quarters (default 4) based on quarterly financial data gathered from Yahoo Finance's API. 
 
 ## Requirements
-* Docker
+* [Docker](https://www.docker.com/products/docker-desktop)
 * Python 3.7+
-* Poetry
-* Gradle
+* [Poetry](https://python-poetry.org/docs/)
+* [Gradle](https://docs.gradle.org/current/userguide/installation.html)
 * (Tilt) - still a work in progress. Don't yet have serving infrastructure set up.
 
 ## Background
@@ -20,18 +19,21 @@ data and make new predictions.
 
 ## Functionality
 This project builds a Docker image and executes functionality inside
-of the container. We use poetry for package management.
+of the container. We use poetry for package management. The current model being trained is
+an LGBMRegressor, although I've tried to make the pipeline configurable to allow training with multiple 
+different types of models.
 
 ### Training
 Run `./gradlew train` to train a new model using existing data and hyperparams. This will
-also spit out stocks predicted to appreciate the most.
+also spit out stocks predicted to appreciate the most. A pickled version of the model is saved
+to the `/models` directory.
 
 #### Hyperparameters
 Hyperparameters can be passed in using `./gradlew train -Pargs="HYPERPARAM=value OTHER=value"`
 
 Options include (default in parenthesis):
 - N_QUARTERS_OUT_TO_PREDICT - num quarters out to predict performance (4)
-- NUM_QUARTERS_FOR_TRAINING - num quarters back to train on (12)
+- NUM_QUARTERS_FOR_TRAINING - num quarters back to train on (16)
 - N_STOCKS_TO_BUY - num stocks to buy per quarter (7)
 - LEARNING_RATE - learning rate (0.1)
 - EXTRACT_OUTLIERS - whether to extract outliers (False)
@@ -58,3 +60,6 @@ executable file that you can run to enter an interactive terminal inside the con
 
 ### Testing
 Run `./gradlew test` to run unit tests
+
+### Backtesting & Hyperparameter Tuning
+Run `jupyter notebook` and open `finance_ml/notebooks/Backtesting.ipynb`

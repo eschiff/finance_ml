@@ -239,7 +239,8 @@ WHERE {QC.TICKER_SYMBOL}='{row[QC.TICKER_SYMBOL]}' AND
       {QC.YEAR}={row[QC.YEAR]}""")
 
 
-def update_quarterly_database(ticker_symbols: Optional[List[str]] = None):
+def update_quarterly_database(ticker_symbols: Optional[List[str]] = None,
+                              auto_backfill_splits: bool = False):
     """
     Updates quarterly database with new quarterly ticker info
 
@@ -248,6 +249,8 @@ def update_quarterly_database(ticker_symbols: Optional[List[str]] = None):
     Args:
         ticker_symbols: List[str] of ticker symbols. If None, defaults to using ticker symbols
             found in table already.
+        auto_backfill_splits: bool - whether to auto backfill splits. If False, prompts for user
+            input before backfilling.
     """
     today = datetime.now()
 
@@ -306,9 +309,12 @@ def update_quarterly_database(ticker_symbols: Optional[List[str]] = None):
                     split_year = row[QC.YEAR]
 
             if split_factor != 1:
-                do_backfill = input(
-                    f"Found stock split - {split_factor}x in Q{split_quarter} {split_year}. "
-                    "Backfill existing tables w/ split data? [y/n]: ")
+                if auto_backfill_splits:
+                    do_backfill = True
+                else:
+                    do_backfill = input(
+                        f"Found stock split - {split_factor}x in Q{split_quarter} {split_year}. "
+                        "Backfill existing tables w/ split data? [y/n]: ")
                 if do_backfill.lower().strip() == 'y':
                     # Adjust all pre-existing split data to make it easy to compare prices!
                     # (also since all new yf data added will be in split adjusted terms already)

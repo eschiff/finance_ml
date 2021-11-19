@@ -5,3 +5,4 @@ debug
 *.pickle
 .gradle
 .idea
+*.db-journal
