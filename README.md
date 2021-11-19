@@ -10,6 +10,7 @@ scraped from Yahoo Finance's API.
 * Docker
 * Python 3.7+
 * Poetry
+* Gradle
 
 ## Background
 Data used by this project is a combination of data from StockPup (now defunct)
