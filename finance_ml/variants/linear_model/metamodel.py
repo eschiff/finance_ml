@@ -78,7 +78,7 @@ class FinanceMLMetamodel:
         predict_df = predict_df.set_index(INDEX_COLUMNS).drop(columns=[FEATURE_COLUMNS[0]])
 
         if adjust_for_current_price:
-            assert current_price_avg, \
+            assert current_price_avg is not None, \
                 "Unable to adjust for current price if AvgPrice is not in prediction DataFrame"
 
             ticker_symbols = predict_df.index.levels[0]

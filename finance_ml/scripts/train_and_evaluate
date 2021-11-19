@@ -1,0 +1,47 @@
+#!/usr/local/bin/python
+# -*- coding: utf-8 -*-
+import sys
+import asyncio
+
+if "/app" not in sys.path:
+        sys.path.append("/app")
+
+from finance_ml.variants.linear_model.main import main
+from finance_ml.variants.linear_model.hyperparams import Hyperparams
+
+
+def process_hyperparams(hyperparam_args) -> Hyperparams:
+    kwargs = {}
+
+    for hyperparam in hyperparam_args:
+        try:
+            key, value = hyperparam.split('=')
+        except ValueError:
+            raise Exception("Error in hyperparameter formatting. Command should look like: "
+                            "./gradlew -Pargs=\"PARAM_1=value PARAM_2=value\"")
+        if value.isnumeric():
+            value = float(value) if '.' in value else int(value)
+        elif value.lower() in ('true', 'false'):
+            value = value.lower() == 'true'
+
+        kwargs[key] = value
+
+    try:
+        hp = Hyperparams(**kwargs)
+    except TypeError as e:
+        raise Exception("Unrecognized hyperparameters passed in! See project README for"
+                        "list of possible hyperparameters") from e
+
+    return hp
+
+
+if __name__ == '__main__':
+    # hyperparam_args is a List[str] - each str should look like "param=value"
+    hyperparam_args = sys.argv[1:] if len(sys.argv) > 1 else None
+
+    if hyperparam_args:
+        hp = process_hyperparams(hyperparam_args)
+    else:
+        hp = Hyperparams()
+
+    sys.exit(asyncio.run(main(hp)))

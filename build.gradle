@@ -2,6 +2,7 @@ ext {
     projectName = 'finance-ml'
     baseImageTag = '0.1.0'
     dataDir = "${project.projectDir}/data"
+    modelDir = "${project.projectDir}/models"
     workDir = "/app"
 }
 
@@ -32,6 +33,31 @@ def getBuildImageTag = { ->
     return buildImageRepositoryTag
 }
 
+def identifyContainers = { filter ->
+    def stdout = new ByteArrayOutputStream()
+
+    project.exec{
+        standardOutput = stdout
+        commandLine 'bash', '-c', "for image in \$(docker image ls -qf reference=$filter | sort | uniq); do docker ps -qf ancestor=\$image; done"
+    }
+
+    List containersFound = (stdout.toString().trim().split("\n") as List)
+    containersFound.removeAll([""])
+    println "Found ${containersFound.size()} containers using filter: ${filter}"
+    return containersFound
+}
+
+def stopContainers = { containers ->
+    for (String containerId in containers){
+        println "Stopping container ${containerId}"
+
+        project.exec{
+          executable 'docker'
+          args "stop", containerId
+        }
+    }
+}
+
 task("buildImage", type: Exec) {
     executable 'docker'
 
@@ -45,7 +71,7 @@ task("buildImage", type: Exec) {
     }
 }
 
-task("debug", type: Exec, dependsOn: "buildImage") {
+task("debug", type: Exec, dependsOn: ["buildImage", "stop"]) {
     def stdout = new ByteArrayOutputStream()
     standardOutput = stdout
 
@@ -53,11 +79,12 @@ task("debug", type: Exec, dependsOn: "buildImage") {
     doFirst {
         args = ["run", "-d",
                 "-v", "${project.ext.dataDir}:${project.ext.workDir}/data",
-                "--entrypoint", "/bin/bash",
-                "-it", "${getBuildImageTag()}",
+                "--entrypoint", "bash",
+                "-t", "${getBuildImageTag()}",
                 "-s"]
     }
 
+    // Create a debug executable file
     doLast {
         def debugImageId = stdout.toString().trim()
         def debugCommand = "docker exec -it"
@@ -89,5 +116,49 @@ task("test", type: Exec, dependsOn: "buildImage") {
             testRunArgs.addAll(project.property('args').split(' '))
         }
         args testRunArgs
+    }
+}
+
+task("stop") {
+    doFirst {
+        def image = "${project.ext.projectName}"
+        stopContainers(identifyContainers(image))
+    }
+}
+
+task("update_db", type: Exec, dependsOn: "buildImage") {
+    executable 'docker'
+    doFirst {
+        def runArgs = ["run", "--rm",
+                "-v", "${project.ext.dataDir}:${project.ext.workDir}/data",
+                "-t", "${getBuildImageTag()}",
+                "${project.ext.workDir}/finance_ml/scripts/update_quarterly_db"]
+
+        if (project.hasProperty('args')) {
+            // Allow users to pass in parameters to update_db.
+            // Example usage: `./gradlew update_db -Pargs="AAPL AMZN"`
+            runArgs.addAll(project.property('args').split(' '))
+        }
+
+        args runArgs
+    }
+}
+
+task("train", type: Exec, dependsOn: "buildImage") {
+    executable 'docker'
+    doFirst {
+        def runArgs = ["run", "--rm",
+                "-v", "${project.ext.dataDir}:${project.ext.workDir}/data",
+                "-v", "${project.ext.modelDir}:${project.ext.workDir}/models",
+                "-t", "${getBuildImageTag()}",
+                "${project.ext.workDir}/finance_ml/scripts/train_and_evaluate"]
+
+        if (project.hasProperty('args')) {
+            // Allow users to pass in hyperparameters to training
+            // Example usage: `./gradlew train -Pargs="NUM_QUARTERS_FOR_TRAINING=12 N_QUARTERS_OUT_TO_PREDICT=4"`
+            runArgs.addAll(project.property('args').split(' '))
+        }
+
+        args runArgs
     }
 }

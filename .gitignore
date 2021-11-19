@@ -1,2 +1,7 @@
 *.pyc
 *.sqbpro
+debug
+.python-version
+*.pickle
+.gradle
+.idea

@@ -5,7 +5,7 @@ import pandas as pd
 import json
 import asyncio
 
-from scripts.yahoo_finance_constants import RECOMMENDATION_GRADE_MAPPING
+from finance_ml.scripts.yahoo_finance_constants import RECOMMENDATION_GRADE_MAPPING
 from finance_ml.utils.constants import QuarterlyColumns, MONTH_TO_QUARTER
 
 

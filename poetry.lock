@@ -393,6 +393,25 @@ secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "cer
 socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
 [[package]]
+name = "xgboost"
+version = "1.5.0"
+description = "XGBoost Python Package"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+numpy = "*"
+scipy = "*"
+
+[package.extras]
+dask = ["dask", "pandas", "distributed"]
+datatable = ["datatable"]
+pandas = ["pandas"]
+plotting = ["graphviz", "matplotlib"]
+scikit-learn = ["scikit-learn"]
+
+[[package]]
 name = "yfinance-ez"
 version = "0.5.6"
 description = "Yahoo! Finance market data downloader"
@@ -420,7 +439,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "0d9ad79c1b5df69d13eb0d678f96f42b0e979f1ffb6d59f9c9b413ef45f98907"
+content-hash = "ac8d33c81271de0277d66e36ace59d2d413a946e56f11cb067a799ce108b7f0f"
 
 [metadata.files]
 anyio = [
@@ -709,6 +728,13 @@ typing-extensions = [
 urllib3 = [
     {file = "urllib3-1.26.7-py2.py3-none-any.whl", hash = "sha256:c4fdf4019605b6e5423637e01bc9fe4daef873709a7973e195ceba0a62bbc844"},
     {file = "urllib3-1.26.7.tar.gz", hash = "sha256:4987c65554f7a2dbf30c18fd48778ef124af6fab771a377103da0585e2336ece"},
+]
+xgboost = [
+    {file = "xgboost-1.5.0-py3-none-macosx_10_14_x86_64.macosx_10_15_x86_64.macosx_11_0_x86_64.whl", hash = "sha256:ae122406c2c1d2a407c18a49c2a05f9bbbaa3249fd39e91c11cb223d538dba4e"},
+    {file = "xgboost-1.5.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:ebe36ee21516a37f645bcd1f3ca1247485fe77d96f1c3d605f970c469b6a9015"},
+    {file = "xgboost-1.5.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:edaad84317a53671069b4477152915c25b4121d997bfa531711f0a18ba1402fe"},
+    {file = "xgboost-1.5.0-py3-none-win_amd64.whl", hash = "sha256:9502a9ed5c52669c83207380eeaaa3862cbf38b271040c6d5226914e07cf196c"},
+    {file = "xgboost-1.5.0.tar.gz", hash = "sha256:6b7c34a18474c1b73b5c6dcf1231f5fe102d6f26490a65465e3879048bf1f3d4"},
 ]
 yfinance-ez = [
     {file = "yfinance_ez-0.5.6-py3-none-any.whl", hash = "sha256:3f05e7281fc9765e48c6843bba714af977e343b60cfe7c86ed9257bcc2837e89"},
