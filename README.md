@@ -11,6 +11,7 @@ scraped from Yahoo Finance's API.
 * Python 3.7+
 * Poetry
 * Gradle
+* (Tilt) - still a work in progress. Don't yet have serving infrastructure set up.
 
 ## Background
 Data used by this project is a combination of data from StockPup (now defunct)
@@ -40,9 +41,6 @@ Options include (default in parenthesis):
 (eg: if the price is predicted to appreciate by 10%, but the current price is already 10% greater 
 than it was last quarter then the predicted appreciation will be 0)
 
-### Testing
-Run `./gradlew test` to run unit tests
-
 ### Updating the Database
 #### Update Quarterly Data
 Run `./gradlew update_db` to pull new data from Yahoo Finance and update the 
@@ -52,3 +50,11 @@ Warning: This can take a LONG time to run as it makes an api query per ticker!
 
 #### Add new Tickers
 Run `./gradlew update_db -Pargs="NEW_TICKER_1 NEW_TICKER_2 ..."`
+
+## Development
+### Debugging inside a container
+Run `./gradlew debug` will build the image and run a container while also generating a `debug`
+executable file that you can run to enter an interactive terminal inside the container.
+
+### Testing
+Run `./gradlew test` to run unit tests

@@ -100,13 +100,13 @@ task("test", type: Exec, dependsOn: "buildImage") {
 
     doFirst {
         def pytestCommand = [
-          "pytest",
-          "finance_ml",
-          "--disable-pytest-warnings",
-          "--cov", "finance_ml",
-          "--cov-report", "term-missing",
-          "-m", "not integration",
-          "-vv"
+            "pytest",
+            "finance_ml",
+            "--disable-pytest-warnings",
+            "--cov", "finance_ml",
+            "--cov-report", "term-missing",
+            "-m", "not integration",
+            "-vv"
         ]
 
         def testRunArgs = ["run", "--rm", "${getBuildImageTag()}"] + pytestCommand
@@ -130,9 +130,9 @@ task("update_db", type: Exec, dependsOn: "buildImage") {
     executable 'docker'
     doFirst {
         def runArgs = ["run", "--rm",
-                "-v", "${project.ext.dataDir}:${project.ext.workDir}/data",
-                "-t", "${getBuildImageTag()}",
-                "${project.ext.workDir}/finance_ml/scripts/update_quarterly_db"]
+                       "-v", "${project.ext.dataDir}:${project.ext.workDir}/data",
+                       "-t", "${getBuildImageTag()}",
+                       "${project.ext.workDir}/finance_ml/scripts/update_quarterly_db"]
 
         if (project.hasProperty('args')) {
             // Allow users to pass in parameters to update_db.
@@ -148,10 +148,10 @@ task("train", type: Exec, dependsOn: "buildImage") {
     executable 'docker'
     doFirst {
         def runArgs = ["run", "--rm",
-                "-v", "${project.ext.dataDir}:${project.ext.workDir}/data",
-                "-v", "${project.ext.modelDir}:${project.ext.workDir}/models",
-                "-t", "${getBuildImageTag()}",
-                "${project.ext.workDir}/finance_ml/scripts/train_and_evaluate"]
+                       "-v", "${project.ext.dataDir}:${project.ext.workDir}/data",
+                       "-v", "${project.ext.modelDir}:${project.ext.workDir}/models",
+                       "-t", "${getBuildImageTag()}",
+                       "${project.ext.workDir}/finance_ml/scripts/train_and_evaluate"]
 
         if (project.hasProperty('args')) {
             // Allow users to pass in hyperparameters to training
